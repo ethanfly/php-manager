@@ -187,20 +187,16 @@ export class ConfigStore {
     }
   }
 
-  updateSite(originalName: string, site: any): void {
-    const sites = this.store.get('sites')
-    const index = sites.findIndex(s => s.name === originalName)
-    if (index > -1) {
-      sites[index] = site
-      this.store.set('sites', sites)
-    }
-  }
-
   updateSite(name: string, site: Partial<SiteConfig>): void {
     const sites = this.store.get('sites')
     const index = sites.findIndex(s => s.name === name)
     if (index > -1) {
-      sites[index] = { ...sites[index], ...site }
+      // 如果传入完整对象则替换，否则合并
+      if (site.domain && site.rootPath) {
+        sites[index] = site as SiteConfig
+      } else {
+        sites[index] = { ...sites[index], ...site }
+      }
       this.store.set('sites', sites)
     }
   }
