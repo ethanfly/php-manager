@@ -235,26 +235,55 @@ function createTray() {
   });
 }
 
-app.whenReady().then(async () => {
-  createTray();
-  createWindow();
+// 单实例锁定
+const gotTheLock = app.requestSingleInstanceLock();
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+if (!gotTheLock) {
+  // 如果获取不到锁，说明已有实例在运行，退出当前实例
+  app.quit();
+} else {
+  // 当第二个实例启动时，聚焦到第一个实例的窗口
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.show();
+      mainWindow.focus();
     }
   });
-});
 
-// 不要在所有窗口关闭时退出，保持托盘运行
-app.on("window-all-closed", () => {
-  // 什么都不做，保持后台运行
-});
+  app.whenReady().then(async () => {
+    createTray();
+    createWindow();
 
-// 真正退出前清理
-app.on("before-quit", () => {
-  isQuitting = true;
-});
+    // 根据配置自动启动服务
+    try {
+      const result = await serviceManager.startAutoStartServices();
+      if (result.details.length > 0) {
+        console.log("自动启动服务:", result.details.join(", "));
+      }
+    } catch (error) {
+      console.error("自动启动服务失败:", error);
+    }
+
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  });
+
+  // 不要在所有窗口关闭时退出，保持托盘运行
+  app.on("window-all-closed", () => {
+    // 什么都不做，保持后台运行
+  });
+
+  // 真正退出前清理
+  app.on("before-quit", () => {
+    isQuitting = true;
+  });
+}
 
 // ==================== IPC 处理程序 ====================
 

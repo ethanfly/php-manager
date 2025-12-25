@@ -159,6 +159,71 @@ export class ServiceManager {
   }
 
   /**
+   * 根据配置启动设置为自启动的服务
+   */
+  async startAutoStartServices(): Promise<{ success: boolean; message: string; details: string[] }> {
+    const details: string[] = []
+    const autoStart = this.configStore.get('autoStart')
+
+    try {
+      // 检查 Nginx 自启动
+      if (autoStart.nginx) {
+        const nginxPath = this.configStore.getNginxPath()
+        if (existsSync(join(nginxPath, 'nginx.exe'))) {
+          if (!(await this.checkProcess('nginx.exe'))) {
+            await this.startProcess(join(nginxPath, 'nginx.exe'), [], nginxPath)
+            details.push('Nginx 已自动启动')
+          }
+        }
+      }
+
+      // 检查 MySQL 自启动
+      if (autoStart.mysql) {
+        const mysqlVersions = this.configStore.get('mysqlVersions')
+        if (mysqlVersions.length > 0) {
+          if (!(await this.checkProcess('mysqld.exe'))) {
+            for (const version of mysqlVersions) {
+              const mysqlPath = this.configStore.getMysqlPath(version)
+              const mysqld = join(mysqlPath, 'bin', 'mysqld.exe')
+              if (existsSync(mysqld)) {
+                // 使用 VBScript 隐藏窗口启动
+                const vbsPath = join(mysqlPath, 'start_mysql.vbs')
+                const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run """${mysqld}"" --defaults-file=""${join(mysqlPath, 'my.ini')}""", 0, False`
+                writeFileSync(vbsPath, vbsContent)
+                await execAsync(`cscript //nologo "${vbsPath}"`, { cwd: mysqlPath })
+                details.push(`MySQL ${version} 已自动启动`)
+                break // 只启动第一个版本
+              }
+            }
+          }
+        }
+      }
+
+      // 检查 Redis 自启动
+      if (autoStart.redis) {
+        const redisPath = this.configStore.getRedisPath()
+        const redisServer = join(redisPath, 'redis-server.exe')
+        if (existsSync(redisServer)) {
+          if (!(await this.checkProcess('redis-server.exe'))) {
+            const configFile = join(redisPath, 'redis.windows.conf')
+            const args = existsSync(configFile) ? ['redis.windows.conf'] : []
+            await this.startProcess(redisServer, args, redisPath)
+            details.push('Redis 已自动启动')
+          }
+        }
+      }
+
+      if (details.length === 0) {
+        return { success: true, message: '没有需要自动启动的服务', details }
+      }
+
+      return { success: true, message: '自动启动服务完成', details }
+    } catch (error: any) {
+      return { success: false, message: `自动启动失败: ${error.message}`, details }
+    }
+  }
+
+  /**
    * 启动所有已安装的服务
    */
   async startAll(): Promise<{ success: boolean; message: string; details: string[] }> {

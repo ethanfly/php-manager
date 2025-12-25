@@ -16,6 +16,9 @@ interface ConfigSchema {
     redis: boolean;
   };
   sites: SiteConfig[];
+  // 应用设置
+  autoLaunch: boolean;
+  startMinimized: boolean;
 }
 
 export interface SiteConfig {
@@ -60,6 +63,9 @@ export class ConfigStore {
           redis: false,
         },
         sites: [],
+        // 应用设置默认值
+        autoLaunch: false,
+        startMinimized: false,
       },
     });
 

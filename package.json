@@ -43,6 +43,7 @@
     "productName": "PHPer开发环境管理器",
     "copyright": "Copyright © 2024 PHPer",
     "icon": "build/icon.ico",
+    "afterPack": "./build/afterPack.js",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -67,8 +68,7 @@
         }
       ],
       "icon": "build/icon.ico",
-      "requestedExecutionLevel": "requireAdministrator",
-      "signAndEditExecutable": false
+      "requestedExecutionLevel": "requireAdministrator"
     },
     "nsis": {
       "oneClick": false,
