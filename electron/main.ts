@@ -30,17 +30,19 @@ function getTrayIconPath(): string {
   return join(__dirname, "../public/icon.svg");
 }
 
-// 获取窗口图标路径 (使用 SVG)
+// 获取窗口图标路径 (Windows 需要 PNG/ICO)
 function getWindowIconPath(): string {
   const { existsSync } = require("fs");
   const paths = [
-    join(__dirname, "../public/icon.svg"),
-    join(__dirname, "../dist/icon.svg"),
+    join(__dirname, "../public/icon.png"),
+    join(__dirname, "../dist/icon.png"),
+    join(__dirname, "../public/icon.ico"),
+    join(__dirname, "../dist/icon.ico"),
   ];
   for (const p of paths) {
     if (existsSync(p)) return p;
   }
-  return join(__dirname, "../public/icon.png");
+  return join(__dirname, "../public/icon.svg");
 }
 
 // 创建托盘图标
