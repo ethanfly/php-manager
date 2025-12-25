@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { PhpManager } from './services/PhpManager'
 import { MysqlManager } from './services/MysqlManager'
@@ -10,6 +10,8 @@ import { HostsManager } from './services/HostsManager'
 import { ConfigStore } from './services/ConfigStore'
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
+let isQuitting = false
 
 // 发送下载进度到渲染进程
 export function sendDownloadProgress(type: string, progress: number, downloaded: number, total: number) {
@@ -46,7 +48,8 @@ function createWindow() {
       height: 40
     },
     frame: false,
-    icon: join(__dirname, '../public/icon.ico')
+    icon: join(__dirname, '../public/icon.ico'),
+    show: false // 先不显示，等 ready-to-show
   })
 
   // 开发环境加载 Vite 开发服务器
@@ -58,13 +61,111 @@ function createWindow() {
     mainWindow.loadFile(join(__dirname, '../dist/index.html'))
   }
 
+  // 窗口准备好后显示
+  mainWindow.once('ready-to-show', () => {
+    // 检查是否开机自启且静默启动
+    const startMinimized = configStore.get('startMinimized')
+    if (!startMinimized) {
+      mainWindow?.show()
+    }
+  })
+
+  // 关闭按钮改为最小化到托盘
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault()
+      mainWindow?.hide()
+    }
+  })
+
   mainWindow.on('closed', () => {
     mainWindow = null
   })
 }
 
-app.whenReady().then(() => {
+// 创建系统托盘
+function createTray() {
+  // 创建托盘图标
+  const iconPath = join(__dirname, '../public/favicon.svg')
+  let trayIcon
+  
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath)
+    if (trayIcon.isEmpty()) {
+      // 如果 SVG 无法加载，创建一个简单的图标
+      trayIcon = nativeImage.createEmpty()
+    }
+  } catch (e) {
+    trayIcon = nativeImage.createEmpty()
+  }
+
+  tray = new Tray(trayIcon)
+  tray.setToolTip('PHPer 开发环境管理器')
+
+  // 创建托盘菜单
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示主窗口',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show()
+          mainWindow.focus()
+        } else {
+          createWindow()
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '启动全部服务',
+      click: async () => {
+        const result = await serviceManager.startAll()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('service-status-changed')
+        }
+      }
+    },
+    {
+      label: '停止全部服务',
+      click: async () => {
+        const result = await serviceManager.stopAll()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('service-status-changed')
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        isQuitting = true
+        app.quit()
+      }
+    }
+  ])
+
+  tray.setContextMenu(contextMenu)
+
+  // 双击托盘图标显示窗口
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      mainWindow.show()
+      mainWindow.focus()
+    } else {
+      createWindow()
+    }
+  })
+}
+
+app.whenReady().then(async () => {
+  createTray()
   createWindow()
+
+  // 检查是否启用开机自启且自动启动服务
+  const autoStartServices = configStore.get('autoStartServicesOnBoot')
+  if (autoStartServices) {
+    await serviceManager.startAll()
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -73,10 +174,14 @@ app.whenReady().then(() => {
   })
 })
 
+// 不要在所有窗口关闭时退出，保持托盘运行
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  // 什么都不做，保持后台运行
+})
+
+// 真正退出前清理
+app.on('before-quit', () => {
+  isQuitting = true
 })
 
 // ==================== IPC 处理程序 ====================
@@ -193,4 +298,49 @@ ipcMain.handle('config:get', (_, key: string) => configStore.get(key))
 ipcMain.handle('config:set', (_, key: string, value: any) => configStore.set(key, value))
 ipcMain.handle('config:getBasePath', () => configStore.getBasePath())
 ipcMain.handle('config:setBasePath', (_, path: string) => configStore.setBasePath(path))
+
+// ==================== 应用设置 ====================
+// 设置开机自启
+ipcMain.handle('app:setAutoLaunch', async (_, enabled: boolean) => {
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    openAsHidden: true, // 静默启动
+    args: ['--hidden']
+  })
+  configStore.set('autoLaunch', enabled)
+  return { success: true, message: enabled ? '已启用开机自启' : '已禁用开机自启' }
+})
+
+// 获取开机自启状态
+ipcMain.handle('app:getAutoLaunch', () => {
+  return app.getLoginItemSettings().openAtLogin
+})
+
+// 设置启动时最小化到托盘
+ipcMain.handle('app:setStartMinimized', (_, enabled: boolean) => {
+  configStore.set('startMinimized', enabled)
+  return { success: true }
+})
+
+// 获取启动时最小化状态
+ipcMain.handle('app:getStartMinimized', () => {
+  return configStore.get('startMinimized') || false
+})
+
+// 设置开机自启时自动启动服务
+ipcMain.handle('app:setAutoStartServices', (_, enabled: boolean) => {
+  configStore.set('autoStartServicesOnBoot', enabled)
+  return { success: true }
+})
+
+// 获取自动启动服务状态
+ipcMain.handle('app:getAutoStartServices', () => {
+  return configStore.get('autoStartServicesOnBoot') || false
+})
+
+// 真正退出应用
+ipcMain.handle('app:quit', () => {
+  isQuitting = true
+  app.quit()
+})
 

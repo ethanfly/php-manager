@@ -105,6 +105,19 @@ interface Window {
       getBasePath: () => Promise<string>
       setBasePath: (path: string) => Promise<void>
     }
+    
+    app: {
+      setAutoLaunch: (enabled: boolean) => Promise<{ success: boolean; message: string }>
+      getAutoLaunch: () => Promise<boolean>
+      setStartMinimized: (enabled: boolean) => Promise<{ success: boolean }>
+      getStartMinimized: () => Promise<boolean>
+      setAutoStartServices: (enabled: boolean) => Promise<{ success: boolean }>
+      getAutoStartServices: () => Promise<boolean>
+      quit: () => Promise<void>
+    }
+    
+    onServiceStatusChanged: (callback: () => void) => void
+    removeServiceStatusChangedListener: (callback: () => void) => void
   }
 }
 

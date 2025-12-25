@@ -123,6 +123,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
     set: (key: string, value: any) => ipcRenderer.invoke('config:set', key, value),
     getBasePath: () => ipcRenderer.invoke('config:getBasePath'),
     setBasePath: (path: string) => ipcRenderer.invoke('config:setBasePath', path)
+  },
+
+  // 应用设置
+  app: {
+    setAutoLaunch: (enabled: boolean) => ipcRenderer.invoke('app:setAutoLaunch', enabled),
+    getAutoLaunch: () => ipcRenderer.invoke('app:getAutoLaunch'),
+    setStartMinimized: (enabled: boolean) => ipcRenderer.invoke('app:setStartMinimized', enabled),
+    getStartMinimized: () => ipcRenderer.invoke('app:getStartMinimized'),
+    setAutoStartServices: (enabled: boolean) => ipcRenderer.invoke('app:setAutoStartServices', enabled),
+    getAutoStartServices: () => ipcRenderer.invoke('app:getAutoStartServices'),
+    quit: () => ipcRenderer.invoke('app:quit')
+  },
+
+  // 监听服务状态变化
+  onServiceStatusChanged: (callback: () => void) => {
+    ipcRenderer.on('service-status-changed', callback)
+  },
+  removeServiceStatusChangedListener: (callback: () => void) => {
+    ipcRenderer.removeListener('service-status-changed', callback)
   }
 })
 
