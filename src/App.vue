@@ -4,7 +4,7 @@
     <div class="title-bar">
       <div class="title-bar-left">
         <div class="app-logo">
-          <img src="/favicon.svg" alt="logo" class="logo-icon" />
+          <img src="/icon.svg" alt="logo" class="logo-icon" />
           <span class="app-name">PHPer 开发环境管理器</span>
         </div>
       </div>

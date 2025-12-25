@@ -1,5 +1,5 @@
 import Store from 'electron-store'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import { app } from 'electron'
 
@@ -28,6 +28,19 @@ export interface SiteConfig {
   enabled: boolean
 }
 
+// 获取应用安装目录下的 data 路径
+function getDefaultBasePath(): string {
+  if (app.isPackaged) {
+    // 生产环境：使用可执行文件所在目录下的 data 文件夹
+    const exePath = app.getPath('exe')
+    const appDir = dirname(exePath)
+    return join(appDir, 'data')
+  } else {
+    // 开发环境：使用项目根目录下的 data 文件夹
+    return join(process.cwd(), 'data')
+  }
+}
+
 export class ConfigStore {
   private store: Store<ConfigSchema>
   private basePath: string
@@ -35,7 +48,7 @@ export class ConfigStore {
   constructor() {
     this.store = new Store<ConfigSchema>({
       defaults: {
-        basePath: join(app.getPath('userData'), 'PHPer'),
+        basePath: getDefaultBasePath(),
         phpVersions: [],
         mysqlVersions: [],
         nginxVersions: [],

@@ -1,7 +1,7 @@
 # PHPer 开发环境管理器
 
 <p align="center">
-  <img src="public/icon.ico" alt="PHPer Logo" width="120" height="120">
+  <img src="public/icon.svg" alt="PHPer Logo" width="120" height="120">
 </p>
 
 <p align="center">
@@ -168,7 +168,7 @@ phper/
 │       └── Settings.vue        # 设置
 │
 ├── public/                      # 静态资源
-│   └── icon.ico                # 应用图标
+│   └── icon.svg                # 应用图标
 │
 ├── index.html                   # HTML 模板
 ├── package.json                 # 项目配置

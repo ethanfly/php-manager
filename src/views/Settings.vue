@@ -120,7 +120,7 @@
         <div class="about-section">
           <div class="app-info">
             <div class="app-logo-large">
-              <img src="/favicon.svg" alt="logo" />
+              <img src="/icon.svg" alt="logo" />
             </div>
             <div class="app-details">
               <h2 class="app-title">PHPer 开发环境管理器</h2>
