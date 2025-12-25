@@ -42,19 +42,6 @@
             />
           </div>
         </div>
-        <div class="setting-item">
-          <div class="setting-info">
-            <h4 class="setting-title">启动时自动运行所有服务</h4>
-            <p class="setting-description">开机自启时自动启动 Nginx、MySQL、Redis 等服务</p>
-          </div>
-          <div class="setting-action">
-            <el-switch 
-              v-model="appSettings.autoStartServices"
-              @change="(val) => toggleAutoStartServices(val as boolean)"
-              :disabled="!appSettings.autoLaunch"
-            />
-          </div>
-        </div>
       </div>
     </div>
 
@@ -168,14 +155,12 @@ interface ServiceAutoStart {
 interface AppSettings {
   autoLaunch: boolean
   startMinimized: boolean
-  autoStartServices: boolean
 }
 
 const basePath = ref('')
 const appSettings = reactive<AppSettings>({
   autoLaunch: false,
-  startMinimized: false,
-  autoStartServices: false
+  startMinimized: false
 })
 
 const services = reactive<ServiceAutoStart[]>([
@@ -191,7 +176,6 @@ const loadSettings = async () => {
     // 加载应用设置
     appSettings.autoLaunch = await window.electronAPI?.app?.getAutoLaunch() || false
     appSettings.startMinimized = await window.electronAPI?.app?.getStartMinimized() || false
-    appSettings.autoStartServices = await window.electronAPI?.app?.getAutoStartServices() || false
     
     // 加载服务自启动设置
     for (const service of services) {
@@ -210,7 +194,6 @@ const toggleAutoLaunch = async (enabled: boolean) => {
       if (!enabled) {
         // 禁用开机自启时，同时禁用相关选项
         appSettings.startMinimized = false
-        appSettings.autoStartServices = false
       }
     } else {
       ElMessage.error(result?.message || '设置失败')
@@ -229,16 +212,6 @@ const toggleStartMinimized = async (enabled: boolean) => {
   } catch (error: any) {
     ElMessage.error(error.message)
     appSettings.startMinimized = !enabled
-  }
-}
-
-const toggleAutoStartServices = async (enabled: boolean) => {
-  try {
-    await window.electronAPI?.app?.setAutoStartServices(enabled)
-    ElMessage.success(enabled ? '已启用自动启动服务' : '已禁用自动启动服务')
-  } catch (error: any) {
-    ElMessage.error(error.message)
-    appSettings.autoStartServices = !enabled
   }
 }
 

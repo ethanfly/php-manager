@@ -42,8 +42,10 @@
     "appId": "com.phper.devmanager",
     "productName": "PHPer开发环境管理器",
     "copyright": "Copyright © 2024 PHPer",
+    "icon": "build/icon.ico",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
@@ -64,6 +66,7 @@
           ]
         }
       ],
+      "icon": "build/icon.ico",
       "requestedExecutionLevel": "requireAdministrator",
       "signAndEditExecutable": false
     },

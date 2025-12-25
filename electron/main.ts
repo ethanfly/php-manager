@@ -17,32 +17,42 @@ import { ServiceManager } from "./services/ServiceManager";
 import { HostsManager } from "./services/HostsManager";
 import { ConfigStore } from "./services/ConfigStore";
 
-// 获取托盘图标路径 (使用 PNG)
-function getTrayIconPath(): string {
+// 获取图标路径
+function getIconPath(filename: string): string {
   const { existsSync } = require("fs");
-  const paths = [
-    join(__dirname, "../public/icon.png"),
-    join(__dirname, "../dist/icon.png"),
+
+  // 打包后的路径
+  if (app.isPackaged) {
+    const paths = [
+      join(process.resourcesPath, "public", filename),
+      join(process.resourcesPath, filename),
+      join(__dirname, "../public", filename),
+    ];
+    for (const p of paths) {
+      if (existsSync(p)) return p;
+    }
+  }
+
+  // 开发环境路径
+  const devPaths = [
+    join(__dirname, "../public", filename),
+    join(__dirname, "../dist", filename),
   ];
-  for (const p of paths) {
+  for (const p of devPaths) {
     if (existsSync(p)) return p;
   }
-  return join(__dirname, "../public/icon.svg");
+
+  return join(__dirname, "../public/icon.ico");
 }
 
-// 获取窗口图标路径 (Windows 需要 PNG/ICO)
+// 获取托盘图标路径
+function getTrayIconPath(): string {
+  return getIconPath("icon.ico");
+}
+
+// 获取窗口图标路径
 function getWindowIconPath(): string {
-  const { existsSync } = require("fs");
-  const paths = [
-    join(__dirname, "../public/icon.png"),
-    join(__dirname, "../dist/icon.png"),
-    join(__dirname, "../public/icon.ico"),
-    join(__dirname, "../dist/icon.ico"),
-  ];
-  for (const p of paths) {
-    if (existsSync(p)) return p;
-  }
-  return join(__dirname, "../public/icon.svg");
+  return getIconPath("icon.ico");
 }
 
 // 创建托盘图标
@@ -228,12 +238,6 @@ function createTray() {
 app.whenReady().then(async () => {
   createTray();
   createWindow();
-
-  // 检查是否启用开机自启且自动启动服务
-  const autoStartServices = configStore.get("autoStartServicesOnBoot");
-  if (autoStartServices) {
-    await serviceManager.startAll();
-  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -477,23 +481,79 @@ ipcMain.handle("config:setBasePath", (_, path: string) =>
 );
 
 // ==================== 应用设置 ====================
-// 设置开机自启
+// 设置开机自启（以管理员模式，使用任务计划程序）
 ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
-  app.setLoginItemSettings({
-    openAtLogin: enabled,
-    openAsHidden: true, // 静默启动
-    args: ["--hidden"],
-  });
-  configStore.set("autoLaunch", enabled);
-  return {
-    success: true,
-    message: enabled ? "已启用开机自启" : "已禁用开机自启",
-  };
+  const { execSync } = require("child_process");
+  const exePath = app.getPath("exe");
+  const taskName = "PHPerDevManager";
+
+  // 开发模式下不支持
+  if (!app.isPackaged) {
+    return {
+      success: false,
+      message: "开发模式下不支持开机自启，请打包后使用",
+    };
+  }
+
+  try {
+    if (enabled) {
+      // 先删除可能存在的旧任务
+      try {
+        execSync(`schtasks /delete /tn "${taskName}" /f`, {
+          encoding: "buffer",
+          windowsHide: true,
+        });
+      } catch (e) {
+        // 忽略删除失败（可能任务不存在）
+      }
+
+      // 创建任务计划程序任务，以最高权限运行
+      const command = `schtasks /create /tn "${taskName}" /tr "\\"${exePath}\\"" /sc onlogon /rl highest /f`;
+      execSync(command, { encoding: "buffer", windowsHide: true });
+
+      configStore.set("autoLaunch", true);
+      return { success: true, message: "已启用开机自启（管理员模式）" };
+    } else {
+      // 删除任务计划程序任务
+      try {
+        execSync(`schtasks /delete /tn "${taskName}" /f`, {
+          encoding: "buffer",
+          windowsHide: true,
+        });
+      } catch (e) {
+        // 忽略删除失败
+      }
+      configStore.set("autoLaunch", false);
+      return { success: true, message: "已禁用开机自启" };
+    }
+  } catch (error: any) {
+    console.error("任务计划操作失败:", error);
+    return {
+      success: false,
+      message: "操作失败，请确保应用以管理员身份运行",
+    };
+  }
 });
 
 // 获取开机自启状态
-ipcMain.handle("app:getAutoLaunch", () => {
-  return app.getLoginItemSettings().openAtLogin;
+ipcMain.handle("app:getAutoLaunch", async () => {
+  const { execSync } = require("child_process");
+  const taskName = "PHPerDevManager";
+
+  // 开发模式下返回 false
+  if (!app.isPackaged) {
+    return false;
+  }
+
+  try {
+    execSync(`schtasks /query /tn "${taskName}"`, {
+      encoding: "buffer",
+      windowsHide: true,
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
 });
 
 // 设置启动时最小化到托盘
@@ -505,17 +565,6 @@ ipcMain.handle("app:setStartMinimized", (_, enabled: boolean) => {
 // 获取启动时最小化状态
 ipcMain.handle("app:getStartMinimized", () => {
   return configStore.get("startMinimized") || false;
-});
-
-// 设置开机自启时自动启动服务
-ipcMain.handle("app:setAutoStartServices", (_, enabled: boolean) => {
-  configStore.set("autoStartServicesOnBoot", enabled);
-  return { success: true };
-});
-
-// 获取自动启动服务状态
-ipcMain.handle("app:getAutoStartServices", () => {
-  return configStore.get("autoStartServicesOnBoot") || false;
 });
 
 // 真正退出应用
