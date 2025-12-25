@@ -1,0 +1,992 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>PECL :: Package search</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="alternate" type="application/rss+xml" title="RSS feed" href="https://pecl.php.net/feeds/latest.rss">
+    <link rel="stylesheet" href="/css/style.css">
+        <link rel="stylesheet" href="/js/calendar/dynCalendar.css">
+</head>
+
+<body >
+
+<div><a id="TOP"></a></div>
+
+<table class="head" cellspacing="0" cellpadding="0" width="100%">
+    <tr>
+        <td class="head-logo">
+            <a href="/"><img src="/img/peclsmall.gif" alt="PECL :: The PHP Extension Community Library" width="106" height="55" style="margin: 5px;"></a><br>
+        </td>
+
+        <td class="head-menu">
+
+                            <a href="/login.php" class="menuBlack">Login</a>
+            
+            &nbsp;|&nbsp;
+            <a href="/packages.php" class="menuBlack">Packages</a>
+            &nbsp;|&nbsp;
+            <a href="/support.php" class="menuBlack">Support</a>
+            &nbsp;|&nbsp;
+            <a href="/bugs/" class="menuBlack">Bugs</a>
+
+        </td>
+    </tr>
+
+    <tr>
+        <td class="head-search" colspan="2">
+            <form method="post" action="/search.php">
+                <p class="head-search"><span class="accesskey">S</span>earch for
+                    <input class="small" type="text" name="search_string" value="" size="20" accesskey="s">
+                    in the
+                    <select name="search_in" class="small">
+                        <option value="packages">Packages</option>
+                        <option value="site">This site (using Google)</option>
+                        <option value="developers">Developers</option>
+                        <option value="pecl-dev">Developer mailing list</option>
+                        <option value="pecl-cvs">SVN commits mailing list</option>
+                    </select>
+                    <input type="image" src="/img/small_submit_white.gif" alt="search" style="vertical-align: middle;">&nbsp;<br>
+                </p>
+            </form>
+        </td>
+    </tr>
+</table>
+
+<table class="middle" cellspacing="0" cellpadding="0">
+    <tr>
+        <td class="sidebar_left">
+            <ul class="side_pages">
+    <li class="side_page"><a href="/" >Home</a></li>
+    <li class="side_page"><a href="/news/" >News</a></li>
+</ul>
+
+            <strong>Documentation:</strong>
+
+<ul class="side_pages">
+    <li class="side_page"><a href="/support.php" >Support</a></li>
+</ul>
+
+            <strong>Downloads:</strong>
+
+<ul class="side_pages">
+    <li class="side_page">
+        <a href="/packages.php" >Browse Packages</a>
+    </li>
+
+    <li class="side_page">
+        <a href="/package-search.php"  style="font-weight: bold" >Search Packages</a>
+    </li>
+
+    <li class="side_page">
+        <a href="/package-stats.php" >Download Statistics</a>
+    </li>
+</ul>
+
+            
+                    </td>
+
+        <td class="content">
+            
+<h1>Package search</h1>
+
+<script src="/js/calendar/browserSniffer.js"></script>
+<script src="/js/calendar/dynCalendar.js"></script>
+
+<script>
+    date_updated_released_on     = false;
+    date_updated_released_before = false;
+    date_updated_released_since  = false;
+
+    released_on_disabled     = false;
+    released_before_disabled = false;
+    released_since_disabled  = false;
+
+    /**
+    * Resets the above variables to false when form is cleared
+    */
+    function form_reset()
+    {
+        searchForm = document.forms['search_form'];
+
+        if (1) {
+            location.href = 'package-search.php';
+        } else {
+            date_updated_released_on     = false;
+            date_updated_released_before = false;
+            date_updated_released_since  = false;
+
+            // Re-enable date dropdowns
+            searchForm.released_before_year.disabled  = false;
+            searchForm.released_before_month.disabled = false;
+            searchForm.released_before_day.disabled   = false;
+
+            searchForm.released_since_year.disabled  = false;
+            searchForm.released_since_month.disabled = false;
+            searchForm.released_since_day.disabled   = false;
+
+            searchForm.released_on_year.disabled  = false;
+            searchForm.released_on_month.disabled = false;
+            searchForm.released_on_day.disabled   = false;
+
+            released_on_disabled     = false;
+            released_before_disabled = false;
+            released_since_disabled  = false;
+
+            // Re-enable search button
+            searchForm.submitButton.disabled = false;
+            return true;
+        }
+    }
+
+    /**
+    * When changed, the date fields in the forms are updated by this
+    */
+    function update_date(prefix, input)
+    {
+        searchForm = document.forms['search_form'];
+        if (eval('date_updated_' + prefix)) return true;
+
+        yearElement  = searchForm.elements[prefix + '_year'];
+        monthElement = searchForm.elements[prefix + '_month'];
+        dayElement   = searchForm.elements[prefix + '_day'];
+        today = new Date();
+
+        switch (input) {
+            case 'year':
+                if (monthElement.value != '' || dayElement.value != '') return true;
+                monthElement.value = today.getMonth() + 1;
+                dayElement.value = today.getDate();
+                break;
+
+            case 'month':
+                if (yearElement.value != '' || dayElement.value != '') return true;
+                yearElement.value = today.getFullYear();
+                dayElement.value  = today.getDate();
+                break;
+
+            case 'day':
+                if (yearElement.value != '' || monthElement.value != '') return true;
+                yearElement.value  = today.getFullYear();
+                monthElement.value = today.getMonth() + 1;
+                break;
+        }
+
+        disableDateOptions(prefix);
+
+        eval('date_updated_' + prefix + ' = true');
+        return true;
+    }
+
+    /**
+    * This function sets the date dropdowns to their
+    * search values.
+    */
+    function setReleaseDropdowns()
+    {
+        if (0) {
+            setDateFromCalendar_released_on('', '', '');
+        } else {
+            if (0) {
+                setDateFromCalendar_released_before('', '', '');
+            }
+
+            if (0) {
+                setDateFromCalendar_released_since('', '', '');
+            }
+        }
+    }
+
+    /**
+    * Function to disable date dropdowns when the
+    * others are selected.
+    */
+    function disableDateOptions(prefix)
+    {
+        // Disable appropriate option based on what just changed.
+        searchForm = document.forms['search_form'];
+        switch (prefix) {
+            case 'released_on':
+                searchForm.released_before_year.disabled  = true;
+                searchForm.released_before_month.disabled = true;
+                searchForm.released_before_day.disabled   = true;
+                released_before_disabled = true;
+
+                searchForm.released_since_year.disabled  = true;
+                searchForm.released_since_month.disabled = true;
+                searchForm.released_since_day.disabled   = true;
+                released_since_disabled = true;
+                break;
+
+            case 'released_before':
+            case 'released_since':
+                searchForm.released_on_year.disabled  = true;
+                searchForm.released_on_month.disabled = true;
+                searchForm.released_on_day.disabled   = true;
+                released_on_disabled = true;
+                break;
+        }
+    }
+
+    /**
+    * Callback functions for the calendar
+    */
+    function setDateFromCalendar_released_on(date, month, year)
+    {
+        date_updated_released_on = true;
+        return setDateFromCalendar('released_on', date, month, year);
+    }
+
+    function setDateFromCalendar_released_before(date, month, year)
+    {
+        date_updated_released_before = true;
+        return setDateFromCalendar('released_before', date, month, year);
+    }
+
+    function setDateFromCalendar_released_since(date, month, year)
+    {
+        date_updated_released_since = true;
+        return setDateFromCalendar('released_since', date, month, year);
+    }
+
+    function setDateFromCalendar(prefix, date, month, year)
+    {
+        searchForm = document.forms['search_form'];
+
+        if (eval(prefix + '_disabled') == true) {
+            return;
+        } else {
+            disableDateOptions(prefix);
+        }
+        yearElement  = searchForm.elements[prefix + '_year'].value = (year == '0' ? '' : year);
+        monthElement = searchForm.elements[prefix + '_month'].value = (month == '0' ? '' : month);
+        dayElement   = searchForm.elements[prefix + '_day'].value = (date == '0' ? '' : date);
+    }
+
+    function validate_form()
+    {
+        searchForm = document.forms['search_form'];
+
+        onYearElement  = searchForm.elements['released_on_year'];
+        onMonthElement = searchForm.elements['released_on_month'];
+        onDayElement   = searchForm.elements['released_on_day'];
+
+        beforeYearElement  = searchForm.elements['released_before_year'];
+        beforeMonthElement = searchForm.elements['released_before_month'];
+        beforeDayElement   = searchForm.elements['released_before_day'];
+
+        sinceYearElement  = searchForm.elements['released_since_year'];
+        sinceMonthElement = searchForm.elements['released_since_month'];
+        sinceDayElement   = searchForm.elements['released_since_day'];
+
+        released_on_changed     = (onYearElement.value     != '' || onMonthElement.value     != '' || onDayElement.value     != '');
+        released_before_changed = (beforeYearElement.value != '' || beforeMonthElement.value != '' || beforeDayElement.value != '');
+        released_since_changed  = (sinceYearElement.value  != '' || sinceMonthElement.value  != '' || sinceDayElement.value  != '');
+
+        if (released_on_changed && (released_since_changed || released_before_changed)) {
+            alert('Cannot combine Released On and Released Before or Since!');
+            return false;
+        }
+
+        document.forms['search_form'].submitButton.value    = 'Sending request...';
+        document.forms['search_form'].submitButton.disabled = true;
+    }
+</script>
+
+<form action="/package-search.php" method="get" name="search_form" onsubmit="validate_form()">
+    <table class="form-holder" cellspacing="1">
+        <caption class="form-caption">Search Options</caption>
+        <tr>
+            <th class="form-label_left">Sear<span class="accesskey">c</span>h for:</th>
+            <td class="form-input">
+                <input type="text" name="pkg_name" size="0" value="redis" accesskey="c">
+            </td>
+        </tr>
+
+        <tr>
+            <th class="form-label_left">Maintainer:</th>
+                <td class="form-input">
+                    <input name="pkg_maintainer" type="text" value="">
+                    <select onchange="document.forms['search_form'].pkg_maintainer.value = this.options[this.selectedIndex].value; this.selectedIndex = 0">
+                        <option value="">Select user...</option>
+                                                    <option value="ch">ch</option>
+                                                    <option value="trowski">Aaron Piotrowski</option>
+                                                    <option value="sodabrew">Aaron Stone</option>
+                                                    <option value="dickmeiss">Adam Dickmeiss</option>
+                                                    <option value="aharvey">Adam Harvey</option>
+                                                    <option value="as">Adam Saponara</option>
+                                                    <option value="advect">advect vasquaz</option>
+                                                    <option value="akshat">Akshat Gupta</option>
+                                                    <option value="alan_k">Alan Knowles</option>
+                                                    <option value="estringanadd">Alejandro Estringana Ruiz</option>
+                                                    <option value="valyala">Alexander Valyalkin</option>
+                                                    <option value="santiago">Alexey Romanenko</option>
+                                                    <option value="indeyets">Alexey Zakhlestin</option>
+                                                    <option value="vnkbabu">Amarnath Reddy N</option>
+                                                    <option value="anonamish">Amish M</option>
+                                                    <option value="flabby">Anan Zhao</option>
+                                                    <option value="ab">Anatol Belski</option>
+                                                    <option value="andi">Andi Gutmans</option>
+                                                    <option value="alcaeus">Andreas Braun</option>
+                                                    <option value="andrei">Andrei Zmievski</option>
+                                                    <option value="andrewdalpino">Andrew DalPino</option>
+                                                    <option value="atex">Andrew Teixeira</option>
+                                                    <option value="blindman">Andrey Demenev</option>
+                                                    <option value="andrey">Andrey Hristov</option>
+                                                    <option value="anilm3">Anil Mahtani</option>
+                                                    <option value="adobkin">Anton Dobkin</option>
+                                                    <option value="izero76">Anton Pitak</option>
+                                                    <option value="jeckerson">Anton Vasiliev</option>
+                                                    <option value="tony2001">Antony Dovgal</option>
+                                                    <option value="skywalking">Apache SkyWalking</option>
+                                                    <option value="abies">Ard Biesheuvel</option>
+                                                    <option value="lbarnaud">Arnaud Le Blanc</option>
+                                                    <option value="jasny">Arnold Daniels</option>
+                                                    <option value="arpad">Arpad Ray</option>
+                                                    <option value="basantk">Basant Kukreja</option>
+                                                    <option value="behnam">Behnam Esfahbod</option>
+                                                    <option value="benhanson">Ben Hanson</option>
+                                                    <option value="ramsey">Ben Ramsey</option>
+                                                    <option value="beberlei">Benjamin Eberlei</option>
+                                                    <option value="silkcut">Bing Bai</option>
+                                                    <option value="andot">Bingyao Ma</option>
+                                                    <option value="biggi">Birgir Haraldsson</option>
+                                                    <option value="rjcarroll">Bob Carroll</option>
+                                                    <option value="bwoebi">Bob Weinand</option>
+                                                    <option value="pinepain">Bohdan Padalko</option>
+                                                    <option value="bor0">Boro Sitnikovski</option>
+                                                    <option value="bradmssw">Brad House</option>
+                                                    <option value="braulio">Braulio J. Solano Rojas</option>
+                                                    <option value="bmoen">Brent Moen</option>
+                                                    <option value="brettmc">Brett McBride</option>
+                                                    <option value="shire">Brian Shire</option>
+                                                    <option value="doubaokun">Bruce Dou</option>
+                                                    <option value="bd808">Bryan Davis</option>
+                                                    <option value="diesing">Burkhard Diesing</option>
+                                                    <option value="crodas">C?sar D. Rodas</option>
+                                                    <option value="calvinb">Calvin Buckley</option>
+                                                    <option value="cem">Caroline Maynard</option>
+                                                    <option value="luckec">Carsten Lucke</option>
+                                                    <option value="langemeijer">Casper Langemeijer</option>
+                                                    <option value="nicos">CHAILLAN Nicolas</option>
+                                                    <option value="cjiang">Changhao Jiang</option>
+                                                    <option value="neeke">Chitao Gao</option>
+                                                    <option value="cschneid">Chris Schneider</option>
+                                                    <option value="daverandom">Chris Wright</option>
+                                                    <option value="nyenyon">Christian Cartus</option>
+                                                    <option value="chregu">Christian Stocker</option>
+                                                    <option value="cmb">Christoph M. Becker</option>
+                                                    <option value="crobin">Christophe Robin</option>
+                                                    <option value="cvubrugier">Christophe Vu-Brugier</option>
+                                                    <option value="sixd">Christopher Jones</option>
+                                                    <option value="cleong728">Chung Leong</option>
+                                                    <option value="curt">Curt Zirzow</option>
+                                                    <option value="danack">Dan Ackroyd</option>
+                                                    <option value="witten">Dan Helfman</option>
+                                                    <option value="marines">Dariusz Slusarczyk</option>
+                                                    <option value="felceyd">Dave Felcey</option>
+                                                    <option value="dsr">Dave Renshaw</option>
+                                                    <option value="davidc">David Coallier</option>
+                                                    <option value="davidengel">David Engel</option>
+                                                    <option value="doury">David Oury</option>
+                                                    <option value="dsp">David Soria Parra</option>
+                                                    <option value="dmendolia">Davide Mendolia</option>
+                                                    <option value="dthompso99">Davin Thompson</option>
+                                                    <option value="void">De Cock Xavier</option>
+                                                    <option value="deminy">Demin Yin</option>
+                                                    <option value="dengket">Dengke Tang</option>
+                                                    <option value="harveyrd">Dennis Harvey</option>
+                                                    <option value="derick">Derick Rethans</option>
+                                                    <option value="musatkd">Dmitriy Musatkin</option>
+                                                    <option value="dmitrykoterov">Dmitry Koterov</option>
+                                                    <option value="dmitry">Dmitry Stogov</option>
+                                                    <option value="dzenovich">Dmitry Zenovich</option>
+                                                    <option value="dom">Dominic Black</option>
+                                                    <option value="ph4r05sk">Dusan Klinec</option>
+                                                    <option value="dktapps">Dylan Taylor</option>
+                                                    <option value="edink">Edin Kadribasic</option>
+                                                    <option value="eduardo">Eduardo Bacchi Kienetz</option>
+                                                    <option value="auroraeosrose">Elizabeth Smith</option>
+                                                    <option value="eklausmeier">Elmar Klausmeier</option>
+                                                    <option value="sankazim">Emanuele Ruffaldi</option>
+                                                    <option value="ecolinet">Eric Colinet</option>
+                                                    <option value="ericsten">Eric Stenson</option>
+                                                    <option value="cubrid">Esen Sagynov</option>
+                                                    <option value="colder">Etienne Kneuss</option>
+                                                    <option value="enemerson">Evan Nemerson</option>
+                                                    <option value="felipe">Felipe Pena</option>
+                                                    <option value="fjanisze">Filip Janiszewski</option>
+                                                    <option value="flavius">Flavius Aspra</option>
+                                                    <option value="flowcontrol">Florian Engelhardt</option>
+                                                    <option value="fcartegnie">Francois Cartegnie</option>
+                                                    <option value="francois">Francois Laupretre</option>
+                                                    <option value="jedisct1">Frank Denis</option>
+                                                    <option value="fmk">Frank M. Kromann</option>
+                                                    <option value="gerald">G?rald Cro</option>
+                                                    <option value="gabe">Gabriel Ricard</option>
+                                                    <option value="gardron">Gareth Ardron</option>
+                                                    <option value="gasolwu">Gasol Wu</option>
+                                                    <option value="gena01">Gennady Feldman</option>
+                                                    <option value="georg">Georg Richter</option>
+                                                    <option value="gschlossnagle">George Schlossnagle</option>
+                                                    <option value="girgias">Gina Peter Banyard</option>
+                                                    <option value="gchiesa">Giuseppe Chiesa</option>
+                                                    <option value="zeriyoshi">Go Kudo</option>
+                                                    <option value="gopalv">Gopal Vijayaraghavan</option>
+                                                    <option value="gcc">Graham Charters</option>
+                                                    <option value="graham">Graham Kelly</option>
+                                                    <option value="grant">Grant Croker</option>
+                                                    <option value="graphdat">Graphdat Support</option>
+                                                    <option value="cellog">Greg Beaver</option>
+                                                    <option value="oschwald">Greg Oschwald</option>
+                                                    <option value="gamr">Guillaume Amringer</option>
+                                                    <option value="cataphract">Gustavo Lopes</option>
+                                                    <option value="haiping">Haiping Zhao</option>
+                                                    <option value="tianfenghan">Han Tianfeng</option>
+                                                    <option value="ymr674">Hang Zhang</option>
+                                                    <option value="bjori">Hannes Magnusson</option>
+                                                    <option value="haolu">Hao Lu</option>
+                                                    <option value="hholzgra">Hartmut Holzgraefe</option>
+                                                    <option value="tessus">Helmut K. C. Tessarek</option>
+                                                    <option value="hradtke">Herman Radtke</option>
+                                                    <option value="hburbach">Holger Burbach</option>
+                                                    <option value="ianb">Ian Barber</option>
+                                                    <option value="kfbombar">IBM OpenDev</option>
+                                                    <option value="iliaa">Ilia Alshanetsky</option>
+                                                    <option value="ioseb">Ioseb Dzmanashvili</option>
+                                                    <option value="ip2location">IP2Location</option>
+                                                    <option value="hywan">Ivan Enderlin</option>
+                                                    <option value="bukka">Jakub Zelenka</option>
+                                                    <option value="imajes">James Cox</option>
+                                                    <option value="jluedke">James Luedke</option>
+                                                    <option value="jmoore">James Moore</option>
+                                                    <option value="asgrim">James Titcumb</option>
+                                                    <option value="eeliu">Jason Mile</option>
+                                                    <option value="jay">Jay Smith</option>
+                                                    <option value="macintoshplus">Jean-Baptiste Nahan</option>
+                                                    <option value="chingor">Jeff Ching</option>
+                                                    <option value="jgmdev">Jefferson Gonzalez</option>
+                                                    <option value="jsjohnst">Jeremy Johnstone</option>
+                                                    <option value="jmikola">Jeremy Mikola</option>
+                                                    <option value="theprez">Jesse Gorzinski</option>
+                                                    <option value="jmjoy">Jiemin Xia</option>
+                                                    <option value="jimjag">Jim Jagielski</option>
+                                                    <option value="jimw">jim winstead</option>
+                                                    <option value="krakjoe">Joe Watkins</option>
+                                                    <option value="hartmann">Johann-Peter Hartmann</option>
+                                                    <option value="hanez">Johannes Findeisen</option>
+                                                    <option value="johannes">Johannes Schlüter</option>
+                                                    <option value="jbboehr">John Boehr</option>
+                                                    <option value="john">John Coggeshall</option>
+                                                    <option value="jcupitt">John Cupitt</option>
+                                                    <option value="jawed">John Jawed</option>
+                                                    <option value="jon">Jon Parise</option>
+                                                    <option value="joonas">Joonas Govenius</option>
+                                                    <option value="jtate">Joseph Tate</option>
+                                                    <option value="jblopez">Joshua Lopez</option>
+                                                    <option value="jah">Jouni Ahto</option>
+                                                    <option value="juliens">Julien Salleyron</option>
+                                                    <option value="jhannus">Justin Hannus</option>
+                                                    <option value="wenlong">Justin Wu</option>
+                                                    <option value="joodk">Jørgen Olsen</option>
+                                                    <option value="kalle">Kalle Sommer Nielsen</option>
+                                                    <option value="kannan">Kannan Muthukkaruppan</option>
+                                                    <option value="ksingla">Kanwaljeet Singla</option>
+                                                    <option value="kasparp">Kaspar Bach Pedersen</option>
+                                                    <option value="kvwalker">Katherine Walker</option>
+                                                    <option value="kirtig">Kirti Velankar</option>
+                                                    <option value="kaigai">Kohei KaiGai</option>
+                                                    <option value="legoktm">Kunal Mehta</option>
+                                                    <option value="lstrojny">Lars Strojny</option>
+                                                    <option value="leigh">Leigh</option>
+                                                    <option value="levim">Levi Morrison</option>
+                                                    <option value="srain">Liao Huqiu</option>
+                                                    <option value="lcastelli">Lorenzo Castelli</option>
+                                                    <option value="iamluc">Luc Vieillescazes</option>
+                                                    <option value="labbati">Luca Abbati</option>
+                                                    <option value="lufei">Lufei</option>
+                                                    <option value="seariver">M?rio Soares</option>
+                                                    <option value="mksheoran">Manoj Kr. Sheoran</option>
+                                                    <option value="kea">Manuel Baldassarri</option>
+                                                    <option value="mboeren">Marc Boeren</option>
+                                                    <option value="msaraujo">Marcelo Araujo</option>
+                                                    <option value="mg">marcin gibula</option>
+                                                    <option value="marco">Marco Schuster</option>
+                                                    <option value="marcot">Marco Tabini</option>
+                                                    <option value="helly">Marcus B?rger</option>
+                                                    <option value="mbar">Marie Barwin</option>
+                                                    <option value="mario">Mario Döring</option>
+                                                    <option value="mruz">Mariusz Laczak</option>
+                                                    <option value="magicaltux">Mark Karpeles</option>
+                                                    <option value="mlwmohawk">Mark L. Woodward</option>
+                                                    <option value="markskilbeck">Mark Skilbeck</option>
+                                                    <option value="mnx">Markus Nix</option>
+                                                    <option value="martynas">Martynas Venckus</option>
+                                                    <option value="kocsismate">Máté Kocsis</option>
+                                                    <option value="ut0pia">Mathieu Hurtevent</option>
+                                                    <option value="mfp">Matthew Peters</option>
+                                                    <option value="cyberspice">Melanie Rhianna Lewis</option>
+                                                    <option value="merletenney">Merle Tenney</option>
+                                                    <option value="mbretter">Michael Bretterklieber</option>
+                                                    <option value="mgrunder">Michael Grunder</option>
+                                                    <option value="agiroloki95">Michael Lochemem</option>
+                                                    <option value="mgdm">Michael Maclean</option>
+                                                    <option value="mpenick">Michael Penick</option>
+                                                    <option value="michael">Michael Spector</option>
+                                                    <option value="sqmk">Michael Squires</option>
+                                                    <option value="mike">Michael Wallner</option>
+                                                    <option value="mignov">Michal Novotny</option>
+                                                    <option value="ironpinguin">Michele Catalano</option>
+                                                    <option value="mikl">Mikael Johansson</option>
+                                                    <option value="mikek">Mike Kaminski</option>
+                                                    <option value="mikesul">Mike Sullivan</option>
+                                                    <option value="mkoppanen">Mikko Koppanen</option>
+                                                    <option value="koubel">Miroslav Kubelik</option>
+                                                    <option value="mabouzou">Mohammed Abouzour</option>
+                                                    <option value="fourd">Morgaut Alexandre</option>
+                                                    <option value="mbechler">Moritz Bechler</option>
+                                                    <option value="mysqlre">MySQL Release Engineering</option>
+                                                    <option value="nabeel">Nabeel Yoosuf</option>
+                                                    <option value="fyb3roptik">Nick Wallace</option>
+                                                    <option value="nicolas">Nicolas Brousse</option>
+                                                    <option value="nielsdos">Niels Dossche</option>
+                                                    <option value="nickzh">Nikazu Tenaka</option>
+                                                    <option value="nikic">Nikita Popov</option>
+                                                    <option value="niden">Nikolaos Dimopoulos</option>
+                                                    <option value="nlopess">Nuno Lopes</option>
+                                                    <option value="phadej">Oleg Grenrus</option>
+                                                    <option value="areaz2">Oliver Welter</option>
+                                                    <option value="oliviergarcia">Olivier Garcia</option>
+                                                    <option value="ohill">Olivier Hill</option>
+                                                    <option value="omar">Omar Kilani</option>
+                                                    <option value="omars">Omar Shaban</option>
+                                                    <option value="patrickallaert">Patrick Allaert</option>
+                                                    <option value="preilly">Patrick Reilly</option>
+                                                    <option value="pestilence">Paul Chandler</option>
+                                                    <option value="pmjones">Paul Jones</option>
+                                                    <option value="pavels">Pavel Stano</option>
+                                                    <option value="merlin">Pavlo Shelyazhenko</option>
+                                                    <option value="yatsukhnenko">Pavlo Yatsukhnenko</option>
+                                                    <option value="ppadron">Pedro Padron</option>
+                                                    <option value="philip">Philip Olson</option>
+                                                    <option value="philippe">Philippe Tjon - A - Hen</option>
+                                                    <option value="pierotibou">Pierre Bonet</option>
+                                                    <option value="pajoye">Pierre Joye</option>
+                                                    <option value="pierrick">Pierrick Charron</option>
+                                                    <option value="pdezwart">Pieter de Zwart</option>
+                                                    <option value="makler">Piotr Klaban</option>
+                                                    <option value="protobufpackages">Proto Google</option>
+                                                    <option value="pdelewski">Przemyslaw Delewski</option>
+                                                    <option value="bqq">Qianqian Bu</option>
+                                                    <option value="rahulpriyadarshi">RAHUL PRIYADARSHI</option>
+                                                    <option value="rjs">Rainer Schaaf</option>
+                                                    <option value="rasmus">Rasmus Lerdorf</option>
+                                                    <option value="reeze">Reeze Xia</option>
+                                                    <option value="remi">Remi Collet</option>
+                                                    <option value="rquadling">Richard Quadling</option>
+                                                    <option value="rnp">RNP Ribose</option>
+                                                    <option value="rrichards">Rob Richards</option>
+                                                    <option value="jlesueur">Robert John LeSueur</option>
+                                                    <option value="rtwitty">Robert Twitty</option>
+                                                    <option value="rockli">rock li</option>
+                                                    <option value="rubs">Rubem Pechansky</option>
+                                                    <option value="rtheunissen">Rudi Theunissen</option>
+                                                    <option value="hirokawa">Rui Hirokawa</option>
+                                                    <option value="osmanov">Ruslan Osmanov</option>
+                                                    <option value="ruslany">Ruslan Yakushev</option>
+                                                    <option value="santiagolizardo">Santiago Lizardo</option>
+                                                    <option value="pollita">Sara Golemon</option>
+                                                    <option value="skettler">Sascha Kettler</option>
+                                                    <option value="sas">Sascha Schumann</option>
+                                                    <option value="scottmac">Scott MacVicar</option>
+                                                    <option value="sean">Sean Coates</option>
+                                                    <option value="seander">Sean DuBois</option>
+                                                    <option value="avsej">Sergey Avseyev</option>
+                                                    <option value="gluke">Sergey Kartashoff</option>
+                                                    <option value="shane">Shane Caraveo</option>
+                                                    <option value="sharadchan87">Sharad Chandran Raju</option>
+                                                    <option value="chobieeee">Shuhei Tanuma</option>
+                                                    <option value="sibaz">Simon Bazley</option>
+                                                    <option value="treffynnon">Simon Holywell</option>
+                                                    <option value="slaws">Simon Laws</option>
+                                                    <option value="stas">Stanislav Malyshev</option>
+                                                    <option value="stanleycheung">Stanley Cheung</option>
+                                                    <option value="stesie">Stefan Siegl</option>
+                                                    <option value="sfrausch">Stefano F. Rausch</option>
+                                                    <option value="sfox">Steph Fox</option>
+                                                    <option value="schst">Stephan Schmidt</option>
+                                                    <option value="splanquart">stephane planquart</option>
+                                                    <option value="sterling">Sterling Hughes</option>
+                                                    <option value="ssb">Stig Bakken</option>
+                                                    <option value="tal">Tal Peer</option>
+                                                    <option value="kjdev">Tatsuya KAMIJO</option>
+                                                    <option value="tricky">Teddy Grenman</option>
+                                                    <option value="thierry">Thierry FOURNIER</option>
+                                                    <option value="cubic">Thomas Hruska</option>
+                                                    <option value="ttk">Thomas K?tter</option>
+                                                    <option value="simenec">Thomas Simenec</option>
+                                                    <option value="tianfyan">Tianfang Yang</option>
+                                                    <option value="tstarling">Tim Starling</option>
+                                                    <option value="timandes">Timandes White</option>
+                                                    <option value="krinkle">Timo Tijhof</option>
+                                                    <option value="datibbaw">Tjerk Meesters</option>
+                                                    <option value="tvlooy">Tom Van Looy</option>
+                                                    <option value="tomassrnka">Tomas Srnka</option>
+                                                    <option value="tony">Tony Leake</option>
+                                                    <option value="hamano">Tsukasa Hamano</option>
+                                                    <option value="tandre">Tyson Andre</option>
+                                                    <option value="uw">Ulf Wendel</option>
+                                                    <option value="steinm">Uwe Steinmann</option>
+                                                    <option value="val">val khokhlov</option>
+                                                    <option value="donraman">Venkat Raman Don</option>
+                                                    <option value="veeve">Venkat Venkataramani</option>
+                                                    <option value="va">Vijay Aswadhati</option>
+                                                    <option value="viktor">Viktor Djupsjöbacka</option>
+                                                    <option value="vjardin">Vincent JARDIN</option>
+                                                    <option value="vito">Vito Chin</option>
+                                                    <option value="wjx">Wang Jiexin</option>
+                                                    <option value="wez">Wez Furlong</option>
+                                                    <option value="willfitch">Will Fitch</option>
+                                                    <option value="wcandillon">William Candillon</option>
+                                                    <option value="xnoguer">Xavier Noguer</option>
+                                                    <option value="laruence">Xinchen Hui</option>
+                                                    <option value="woshiguo35">xinhua guo</option>
+                                                    <option value="longxinhui">xinhui long</option>
+                                                    <option value="yanlong">Yanlong He</option>
+                                                    <option value="yorambh">Yoram Bar-Haim</option>
+                                                    <option value="hnw">Yoshio HANAWA</option>
+                                                    <option value="monque">Yuchen Wang</option>
+                                                    <option value="yumin1985">yuduan chen</option>
+                                                    <option value="uchiyama">Yuji Uchiyama</option>
+                                                    <option value="surfchen">Ze Chen</option>
+                                                    <option value="zeev">Zeev Suraski</option>
+                                                    <option value="bearlord">Zhenqiang Zhang</option>
+                                                    <option value="rick">Zhenyu Wu</option>
+                                            </select>
+                </td>
+            </tr>
+
+        <tr>
+            <th class="form-label_left">Category:</th>
+            <td class="form-input">
+                <select name="pkg_category">
+                    <option value=""></option>
+                                            <option value="47" >Audio</option>
+                                            <option value="1" >Authentication</option>
+                                            <option value="2" >Benchmarking</option>
+                                            <option value="3" >Caching</option>
+                                            <option value="4" >Configuration</option>
+                                            <option value="5" >Console</option>
+                                            <option value="7" >Database</option>
+                                            <option value="8" >Date and Time</option>
+                                            <option value="6" >Encryption</option>
+                                            <option value="44" >Event</option>
+                                            <option value="33" >File Formats</option>
+                                            <option value="9" >File System</option>
+                                            <option value="34" >Gtk Components</option>
+                                            <option value="53" >Gtk2 Components</option>
+                                            <option value="45" >GUI</option>
+                                            <option value="10" >HTML</option>
+                                            <option value="11" >HTTP</option>
+                                            <option value="12" >Images</option>
+                                            <option value="28" >Internationalization</option>
+                                            <option value="59" >Languages</option>
+                                            <option value="13" >Logging</option>
+                                            <option value="14" >Mail</option>
+                                            <option value="15" >Math</option>
+                                            <option value="46" >Multimedia</option>
+                                            <option value="16" >Networking</option>
+                                            <option value="17" >Numbers</option>
+                                            <option value="18" >Payment</option>
+                                            <option value="19" >PEAR</option>
+                                            <option value="55" >PEAR Website</option>
+                                            <option value="25" >PHP</option>
+                                            <option value="31" >Processing</option>
+                                            <option value="56" >QA Tools</option>
+                                            <option value="20" >Scheduling</option>
+                                            <option value="21" >Science</option>
+                                            <option value="57" >Search Engine</option>
+                                            <option value="54" >Security</option>
+                                            <option value="42" >Semantic Web</option>
+                                            <option value="35" >Streams</option>
+                                            <option value="27" >Structures</option>
+                                            <option value="37" >System</option>
+                                            <option value="43" >Testing</option>
+                                            <option value="36" >Text</option>
+                                            <option value="29" >Tools and Utilities</option>
+                                            <option value="50" >Validate</option>
+                                            <option value="40" >Version Control</option>
+                                            <option value="60" >Virtualization</option>
+                                            <option value="23" >Web Services</option>
+                                            <option value="22" >XML</option>
+                                    </select>
+            </td>
+        </tr>
+
+        <tr><td class="form-input" colspan="2">&nbsp;</td></tr>
+
+        <tr>
+            <th class="form-label_left" colspan="2">With a release...</th>
+        </tr>
+
+        <tr>
+            <th class="form-label_left">On:</th>
+            <td class="form-input">
+                <input type="text" name="released_on_year" value="" size="5" onkeyup="update_date('released_on', 'year')">
+                <select name="released_on_month" onchange="update_date('released_on', 'month')">
+                    <option value=""></option>
+                                            <option value="1">January</option>
+                                            <option value="2">February</option>
+                                            <option value="3">March</option>
+                                            <option value="4">April</option>
+                                            <option value="5">May</option>
+                                            <option value="6">June</option>
+                                            <option value="7">July</option>
+                                            <option value="8">August</option>
+                                            <option value="9">September</option>
+                                            <option value="10">October</option>
+                                            <option value="11">November</option>
+                                            <option value="12">December</option>
+                                    </select>
+                <select name="released_on_day" onchange="update_date('released_on', 'day')">
+                    <option value=""></option>
+                                            <option value="1">1</option>
+                                            <option value="2">2</option>
+                                            <option value="3">3</option>
+                                            <option value="4">4</option>
+                                            <option value="5">5</option>
+                                            <option value="6">6</option>
+                                            <option value="7">7</option>
+                                            <option value="8">8</option>
+                                            <option value="9">9</option>
+                                            <option value="10">10</option>
+                                            <option value="11">11</option>
+                                            <option value="12">12</option>
+                                            <option value="13">13</option>
+                                            <option value="14">14</option>
+                                            <option value="15">15</option>
+                                            <option value="16">16</option>
+                                            <option value="17">17</option>
+                                            <option value="18">18</option>
+                                            <option value="19">19</option>
+                                            <option value="20">20</option>
+                                            <option value="21">21</option>
+                                            <option value="22">22</option>
+                                            <option value="23">23</option>
+                                            <option value="24">24</option>
+                                            <option value="25">25</option>
+                                            <option value="26">26</option>
+                                            <option value="27">27</option>
+                                            <option value="28">28</option>
+                                            <option value="29">29</option>
+                                            <option value="30">30</option>
+                                            <option value="31">31</option>
+                                    </select>
+                <script>
+                    calendarReleasedOn = new dynCalendar('calendarReleasedOn', 'setDateFromCalendar_released_on', 'img/');
+                </script>
+            </td>
+        </tr>
+
+        <tr>
+            <th class="form-label_left">Before:</th>
+            <td class="form-input">
+                <input type="text" name="released_before_year" value="" size="5" onkeyup="update_date('released_before', 'year')" />
+                <select name="released_before_month" onchange="update_date('released_before', 'month')">
+                    <option value=""></option>
+                                            <option value="1">January</option>
+                                            <option value="2">February</option>
+                                            <option value="3">March</option>
+                                            <option value="4">April</option>
+                                            <option value="5">May</option>
+                                            <option value="6">June</option>
+                                            <option value="7">July</option>
+                                            <option value="8">August</option>
+                                            <option value="9">September</option>
+                                            <option value="10">October</option>
+                                            <option value="11">November</option>
+                                            <option value="12">December</option>
+                                    </select>
+
+                <select name="released_before_day" onchange="update_date('released_before', 'day')">
+                    <option value=""></option>
+                                            <option value="1">1</option>
+                                            <option value="2">2</option>
+                                            <option value="3">3</option>
+                                            <option value="4">4</option>
+                                            <option value="5">5</option>
+                                            <option value="6">6</option>
+                                            <option value="7">7</option>
+                                            <option value="8">8</option>
+                                            <option value="9">9</option>
+                                            <option value="10">10</option>
+                                            <option value="11">11</option>
+                                            <option value="12">12</option>
+                                            <option value="13">13</option>
+                                            <option value="14">14</option>
+                                            <option value="15">15</option>
+                                            <option value="16">16</option>
+                                            <option value="17">17</option>
+                                            <option value="18">18</option>
+                                            <option value="19">19</option>
+                                            <option value="20">20</option>
+                                            <option value="21">21</option>
+                                            <option value="22">22</option>
+                                            <option value="23">23</option>
+                                            <option value="24">24</option>
+                                            <option value="25">25</option>
+                                            <option value="26">26</option>
+                                            <option value="27">27</option>
+                                            <option value="28">28</option>
+                                            <option value="29">29</option>
+                                            <option value="30">30</option>
+                                            <option value="31">31</option>
+                                    </select>
+
+                <script>
+                    calendarReleasedBefore = new dynCalendar('calendarReleasedBefore', 'setDateFromCalendar_released_before', 'img/');
+                </script>
+            </td>
+        </tr>
+
+        <tr>
+            <th class="form-label_left">Since:</th>
+            <td class="form-input">
+            <input type="text" name="released_since_year" value="" size="5" onkeyup="update_date('released_since', 'year')" />
+            <select name="released_since_month" onchange="update_date('released_since', 'month')">
+                <option value=""></option>
+                                    <option value="1">January</option>
+                                    <option value="2">February</option>
+                                    <option value="3">March</option>
+                                    <option value="4">April</option>
+                                    <option value="5">May</option>
+                                    <option value="6">June</option>
+                                    <option value="7">July</option>
+                                    <option value="8">August</option>
+                                    <option value="9">September</option>
+                                    <option value="10">October</option>
+                                    <option value="11">November</option>
+                                    <option value="12">December</option>
+                            </select>
+            <select name="released_since_day" onchange="update_date('released_since', 'day')">
+                <option value=""></option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                    <option value="11">11</option>
+                                    <option value="12">12</option>
+                                    <option value="13">13</option>
+                                    <option value="14">14</option>
+                                    <option value="15">15</option>
+                                    <option value="16">16</option>
+                                    <option value="17">17</option>
+                                    <option value="18">18</option>
+                                    <option value="19">19</option>
+                                    <option value="20">20</option>
+                                    <option value="21">21</option>
+                                    <option value="22">22</option>
+                                    <option value="23">23</option>
+                                    <option value="24">24</option>
+                                    <option value="25">25</option>
+                                    <option value="26">26</option>
+                                    <option value="27">27</option>
+                                    <option value="28">28</option>
+                                    <option value="29">29</option>
+                                    <option value="30">30</option>
+                                    <option value="31">31</option>
+                            </select>
+            <script>
+                calendarReleasedSince = new dynCalendar('calendarReleasedSince', 'setDateFromCalendar_released_since', 'img/');
+            </script>
+            </td>
+        </tr>
+
+        <tr>
+            <th class="form-label_left">&nbsp;</th>
+            <td class="form-input">
+                <input type="submit" name="submitButton" value="Search">
+                <input type="reset" value="Clear" onclick="return form_reset()">
+            </td>
+        </tr>
+    </table>
+</form>
+
+<script>
+    // Call function to set dropdowns to their search values.
+    setReleaseDropdowns();
+</script>
+
+<br><br>
+<table cellpadding="0" cellspacing="1" style="width: 90%; border: 0px;">
+    <tr>
+        <td bgcolor="#000000">
+            <table cellpadding="2" cellspacing="1" style="width: 100%; border: 0px;">
+                <tr style="background-color: #CCCCCC;">
+                    <th><table border="0" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td align="left" width="50"></td>
+                    <td align="center">Search results (1 - 1 of 1)</td>
+                    <td align="right" width="50"></td>
+                </tr>
+            </table></th>
+                </tr>
+                <tr bgcolor="#ffffff">
+                    <td>
+
+                        <table border="0" cellpadding="2" cellspacing="2">
+                                                            <tr>
+                                    <td>
+                                        <a href="/package/redis"><span style="background-color: #d5ffc1">redis</span></a>
+                                    </td>
+                                    <td>PHP extension for interfacing with key-value stores</td>
+                                </tr>
+                                                    </table>
+
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+        </td>
+
+        
+    </tr>
+</table>
+
+<table class="foot" cellspacing="0" cellpadding="0">
+    <tr>
+        <td class="foot-bar" colspan="2">
+            <a href="/about/privacy.php" class="menuBlack">PRIVACY POLICY</a>
+            &nbsp;|&nbsp;
+            <a href="/credits.php" class="menuBlack">CREDITS</a>
+            <br>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="foot-copy">
+            <small>
+                <a href="/copyright.php">Copyright &copy; 2001-2025 The PHP Group</a><br>
+                All rights reserved.<br>
+            </small>
+        </td>
+        <td class="foot-source">
+            <small>
+                Last updated: Wed Sep 03 10:50:24 2025 UTC<br>
+                Bandwidth and hardware provided by: <a href="https://www.pair.com/">pair Networks</a>
+            </small>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
+

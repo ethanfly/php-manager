@@ -1,0 +1,1762 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>PECL :: Package :: redis</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="alternate" type="application/rss+xml" title="RSS feed" href="https://pecl.php.net/feeds/latest.rss">
+    <link rel="stylesheet" href="/css/style.css">
+    </head>
+
+<body >
+
+<div><a id="TOP"></a></div>
+
+<table class="head" cellspacing="0" cellpadding="0" width="100%">
+    <tr>
+        <td class="head-logo">
+            <a href="/"><img src="/img/peclsmall.gif" alt="PECL :: The PHP Extension Community Library" width="106" height="55" style="margin: 5px;"></a><br>
+        </td>
+
+        <td class="head-menu">
+
+                            <a href="/login.php" class="menuBlack">Login</a>
+            
+            &nbsp;|&nbsp;
+            <a href="/packages.php" class="menuBlack">Packages</a>
+            &nbsp;|&nbsp;
+            <a href="/support.php" class="menuBlack">Support</a>
+            &nbsp;|&nbsp;
+            <a href="/bugs/" class="menuBlack">Bugs</a>
+
+        </td>
+    </tr>
+
+    <tr>
+        <td class="head-search" colspan="2">
+            <form method="post" action="/search.php">
+                <p class="head-search"><span class="accesskey">S</span>earch for
+                    <input class="small" type="text" name="search_string" value="" size="20" accesskey="s">
+                    in the
+                    <select name="search_in" class="small">
+                        <option value="packages">Packages</option>
+                        <option value="site">This site (using Google)</option>
+                        <option value="developers">Developers</option>
+                        <option value="pecl-dev">Developer mailing list</option>
+                        <option value="pecl-cvs">SVN commits mailing list</option>
+                    </select>
+                    <input type="image" src="/img/small_submit_white.gif" alt="search" style="vertical-align: middle;">&nbsp;<br>
+                </p>
+            </form>
+        </td>
+    </tr>
+</table>
+
+<table class="middle" cellspacing="0" cellpadding="0">
+    <tr>
+        <td class="sidebar_left">
+            <ul class="side_pages">
+    <li class="side_page"><a href="/" >Home</a></li>
+    <li class="side_page"><a href="/news/" >News</a></li>
+</ul>
+
+            <strong>Documentation:</strong>
+
+<ul class="side_pages">
+    <li class="side_page"><a href="/support.php" >Support</a></li>
+</ul>
+
+            <strong>Downloads:</strong>
+
+<ul class="side_pages">
+    <li class="side_page">
+        <a href="/packages.php" >Browse Packages</a>
+    </li>
+
+    <li class="side_page">
+        <a href="/package-search.php" >Search Packages</a>
+    </li>
+
+    <li class="side_page">
+        <a href="/package-stats.php" >Download Statistics</a>
+    </li>
+</ul>
+
+            
+                    </td>
+
+        <td class="content">
+            
+<a href="/packages.php">Top Level</a> :: <a href="/packages.php?catpid=7&catname=Database">Database</a>
+    :: redis
+
+
+<h2 style="text-align:center">
+    redis        </h2>
+
+
+<table cellpadding="0" cellspacing="1" style="width: 90%; border: 0px;">
+    <tr>
+        <td style="background-color: #000000">
+            <table cellpadding="2" cellspacing="1" style="width: 100%; border: 0px;">
+                <tr style="background-color: #CCCCCC;">
+                    <th colspan="2">Package Information</th>
+                </tr>
+
+                <tr>
+                    <th valign="top" style="background-color: #cccccc">Summary</th>
+                    <td valign="top" style="background-color: #e8e8e8">PHP extension for interfacing with key-value stores</td>
+                </tr>
+
+                <tr>
+                    <th valign="top" style="background-color: #cccccc">Maintainers</th>
+                    <td valign="top" style="background-color: #e8e8e8">
+                                                    Michael Grunder                                                            &lt;<a href="/account-mail.php?handle=mgrunder">
+                                    michael dot grunder at gmail dot com                                </a>&gt;
+                                                        (lead)
+                                                                                    [<a href="/user/mgrunder">details</a>]<br>
+                                                    Pavlo Yatsukhnenko                                                        (lead)
+                                                                                    [<a href="/user/yatsukhnenko">details</a>]<br>
+                                            </td>
+                </tr>
+
+                <tr>
+                    <th valign="top" style="background-color: #cccccc">License</th>
+                    <td valign="top" style="background-color: #e8e8e8"><a href="https://php.net/license/3_01.txt">PHP</a></td>
+                </tr>
+
+                <tr>
+                    <th valign="top" style="background-color: #cccccc">Description</th>
+                    <td valign="top" style="background-color: #e8e8e8">This extension provides an API for communicating with RESP-based key-value<br />
+   stores, such as Redis, Valkey, and KeyDB.</td>
+                </tr>
+
+                                    <tr>
+                        <th valign="top" style="background-color: #cccccc">Homepage</th>
+                        <td valign="top" style="background-color: #e8e8e8">
+                            <a href="https://github.com/phpredis/phpredis/">
+                                https://github.com/phpredis/phpredis/                            </a>
+                        </td>
+                    </tr>
+                
+                
+                
+            </table>
+        </td>
+    </tr>
+</table>
+
+
+<br>
+<table border="0" cellspacing="3" cellpadding="3" height="48" width="90%" align="center">
+    <tr>
+        <td align="center">[ <a href="/get/redis">Latest Tarball</a> ]</td>
+        <td align="center">[
+                            <a href="/package-changelog.php?package=redis">
+                    Changelog
+                </a>
+                    ]</td>
+        <td align="center">
+            [ <a href="/package-stats.php?pid=935&amp;rid=&amp;cid=7">
+                View Statistics
+            </a> ]
+        </td>
+    </tr>
+    <tr>
+        <td align="center">
+                            [ <a href="https://github.com/phpredis/phpredis/" target="_blank">Browse Source</a> ]
+                    </td>
+
+        <td align="center">
+                            [ <a href="https://github.com/phpredis/phpredis/issues">Package Bugs</a> ]
+                    </td>
+
+        <td align="center">
+                            [ <a href="https://github.com/phpredis/phpredis/#readme">
+                    View Documentation
+                </a> ]
+                    </td>
+    </tr>
+
+    </table>
+
+<br>
+
+    <table cellpadding="0" cellspacing="1" style="width: 90%; border: 0px;">
+        <tr>
+            <td style="background-color: #000000">
+                <table cellpadding="2" cellspacing="1" style="width: 100%; border: 0px;">
+                    <tr style="background-color: #CCCCCC;">
+                        <th colspan="5">Available Releases</th>
+                    </tr>
+
+            <tr>
+            <th valign="top" style="background-color: #ffffff">Version</th>
+            <th valign="top" style="background-color: #ffffff">State</th>
+            <th valign="top" style="background-color: #ffffff">Release Date</th>
+            <th valign="top" style="background-color: #ffffff">Downloads</th>
+            <th valign="top" style="background-color: #ffffff">&nbsp;</th>
+        </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;3&period;0">6&period;3&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2025-11-06</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.3.0.tgz">redis-6.3.0.tgz</a> (389.9kB)&nbsp;&nbsp;<a href="/package/redis/6.3.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;3&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;3&period;0RC1">6&period;3&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2025-10-15</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.3.0RC1.tgz">redis-6.3.0RC1.tgz</a> (390.3kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;3&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;2&period;0">6&period;2&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2025-03-24</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.2.0.tgz">redis-6.2.0.tgz</a> (371.0kB)&nbsp;&nbsp;<a href="/package/redis/6.2.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;2&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;1&period;0">6&period;1&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2024-10-04</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.1.0.tgz">redis-6.1.0.tgz</a> (365.0kB)&nbsp;&nbsp;<a href="/package/redis/6.1.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;1&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;1&period;0RC2">6&period;1&period;0RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2024-09-23</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.1.0RC2.tgz">redis-6.1.0RC2.tgz</a> (364.9kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;1&period;0RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;1&period;0RC1">6&period;1&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2024-08-04</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.1.0RC1.tgz">redis-6.1.0RC1.tgz</a> (362.7kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;1&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;0&period;2">6&period;0&period;2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2023-10-22</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.0.2.tgz">redis-6.0.2.tgz</a> (357.4kB)&nbsp;&nbsp;<a href="/package/redis/6.0.2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;0&period;2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;0&period;1">6&period;0&period;1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2023-09-23</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.0.1.tgz">redis-6.0.1.tgz</a> (357.1kB)&nbsp;&nbsp;<a href="/package/redis/6.0.1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;0&period;1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;0&period;0">6&period;0&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2023-09-11</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.0.0.tgz">redis-6.0.0.tgz</a> (356.7kB)&nbsp;&nbsp;<a href="/package/redis/6.0.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;0&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;0&period;0RC2">6&period;0&period;0RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2023-08-20</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.0.0RC2.tgz">redis-6.0.0RC2.tgz</a> (356.8kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;0&period;0RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;6&period;0&period;0RC1">6&period;0&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2023-08-01</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-6.0.0RC1.tgz">redis-6.0.0RC1.tgz</a> (356.7kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=6&period;0&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;7">5&period;3&period;7</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2022-02-15</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.7.tgz">redis-5.3.7.tgz</a> (268.8kB)&nbsp;&nbsp;<a href="/package/redis/5.3.7/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;7">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;7RC2">5&period;3&period;7RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2022-02-12</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.7RC2.tgz">redis-5.3.7RC2.tgz</a> (268.8kB)&nbsp;&nbsp;<a href="/package/redis/5.3.7RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;7RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;7RC1">5&period;3&period;7RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2022-02-02</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.7RC1.tgz">redis-5.3.7RC1.tgz</a> (268.8kB)&nbsp;&nbsp;<a href="/package/redis/5.3.7RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;7RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;6">5&period;3&period;6</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2022-01-17</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.6.tgz">redis-5.3.6.tgz</a> (267.8kB)&nbsp;&nbsp;<a href="/package/redis/5.3.6/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;6">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;5">5&period;3&period;5</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2021-12-18</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.5.tgz">redis-5.3.5.tgz</a> (267.7kB)&nbsp;&nbsp;<a href="/package/redis/5.3.5/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;5">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;5RC1">5&period;3&period;5RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2021-11-16</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.5RC1.tgz">redis-5.3.5RC1.tgz</a> (267.7kB)&nbsp;&nbsp;<a href="/package/redis/5.3.5RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;5RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;4">5&period;3&period;4</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2021-03-24</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.4.tgz">redis-5.3.4.tgz</a> (261.9kB)&nbsp;&nbsp;<a href="/package/redis/5.3.4/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;4">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;3">5&period;3&period;3</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2021-02-01</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.3.tgz">redis-5.3.3.tgz</a> (260.7kB)&nbsp;&nbsp;<a href="/package/redis/5.3.3/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;3">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;2">5&period;3&period;2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-10-22</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.2.tgz">redis-5.3.2.tgz</a> (260.6kB)&nbsp;&nbsp;<a href="/package/redis/5.3.2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;2RC2">5&period;3&period;2RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-10-14</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.2RC2.tgz">redis-5.3.2RC2.tgz</a> (260.5kB)&nbsp;&nbsp;<a href="/package/redis/5.3.2RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;2RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;2RC1">5&period;3&period;2RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-10-07</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.2RC1.tgz">redis-5.3.2RC1.tgz</a> (260.4kB)&nbsp;&nbsp;<a href="/package/redis/5.3.2RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;2RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;1">5&period;3&period;1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-07-07</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.1.tgz">redis-5.3.1.tgz</a> (258.3kB)&nbsp;&nbsp;<a href="/package/redis/5.3.1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;0">5&period;3&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-06-30</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.0.tgz">redis-5.3.0.tgz</a> (257.8kB)&nbsp;&nbsp;<a href="/package/redis/5.3.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;0RC2">5&period;3&period;0RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-06-26</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.0RC2.tgz">redis-5.3.0RC2.tgz</a> (257.9kB)&nbsp;&nbsp;<a href="/package/redis/5.3.0RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;0RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;3&period;0RC1">5&period;3&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-06-25</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.3.0RC1.tgz">redis-5.3.0RC1.tgz</a> (257.7kB)&nbsp;&nbsp;<a href="/package/redis/5.3.0RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;3&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;2&period;2">5&period;2&period;2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-05-05</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.2.2.tgz">redis-5.2.2.tgz</a> (245.7kB)&nbsp;&nbsp;<a href="/package/redis/5.2.2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;2&period;2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;2&period;1">5&period;2&period;1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-03-19</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.2.1.tgz">redis-5.2.1.tgz</a> (245.7kB)&nbsp;&nbsp;<a href="/package/redis/5.2.1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;2&period;1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;2&period;0">5&period;2&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-03-02</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.2.0.tgz">redis-5.2.0.tgz</a> (245.6kB)&nbsp;&nbsp;<a href="/package/redis/5.2.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;2&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;2&period;0RC2">5&period;2&period;0RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-02-21</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.2.0RC2.tgz">redis-5.2.0RC2.tgz</a> (245.5kB)&nbsp;&nbsp;<a href="/package/redis/5.2.0RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;2&period;0RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;2&period;0RC1">5&period;2&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2020-02-15</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.2.0RC1.tgz">redis-5.2.0RC1.tgz</a> (244.8kB)&nbsp;&nbsp;<a href="/package/redis/5.2.0RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;2&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;1&period;1">5&period;1&period;1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-11-11</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.1.1.tgz">redis-5.1.1.tgz</a> (239.5kB)&nbsp;&nbsp;<a href="/package/redis/5.1.1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;1&period;1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;1&period;0">5&period;1&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-10-31</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.1.0.tgz">redis-5.1.0.tgz</a> (239.1kB)&nbsp;&nbsp;<a href="/package/redis/5.1.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;1&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;1&period;0RC2">5&period;1&period;0RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-10-21</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.1.0RC2.tgz">redis-5.1.0RC2.tgz</a> (238.7kB)&nbsp;&nbsp;<a href="/package/redis/5.1.0RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;1&period;0RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;1&period;0RC1">5&period;1&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-10-09</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.1.0RC1.tgz">redis-5.1.0RC1.tgz</a> (238.9kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;1&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;0&period;2">5&period;0&period;2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-07-29</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.0.2.tgz">redis-5.0.2.tgz</a> (237.6kB)&nbsp;&nbsp;<a href="/package/redis/5.0.2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;0&period;2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;0&period;1">5&period;0&period;1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-07-12</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.0.1.tgz">redis-5.0.1.tgz</a> (237.8kB)&nbsp;&nbsp;<a href="/package/redis/5.0.1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;0&period;1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;0&period;0">5&period;0&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-07-02</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.0.0.tgz">redis-5.0.0.tgz</a> (237.8kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;0&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;0&period;0RC2">5&period;0&period;0RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-06-25</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.0.0RC2.tgz">redis-5.0.0RC2.tgz</a> (237.6kB)&nbsp;&nbsp;<a href="/package/redis/5.0.0RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;0&period;0RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;5&period;0&period;0RC1">5&period;0&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-06-20</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-5.0.0RC1.tgz">redis-5.0.0RC1.tgz</a> (237.5kB)&nbsp;&nbsp;<a href="/package/redis/5.0.0RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=5&period;0&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;3&period;0">4&period;3&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-03-13</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.3.0.tgz">redis-4.3.0.tgz</a> (236.2kB)&nbsp;&nbsp;<a href="/package/redis/4.3.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;3&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;3&period;0RC2">4&period;3&period;0RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-03-06</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.3.0RC2.tgz">redis-4.3.0RC2.tgz</a> (236.2kB)&nbsp;&nbsp;<a href="/package/redis/4.3.0RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;3&period;0RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;3&period;0RC1">4&period;3&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2019-02-25</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.3.0RC1.tgz">redis-4.3.0RC1.tgz</a> (236.0kB)&nbsp;&nbsp;<a href="/package/redis/4.3.0RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;3&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;2&period;0">4&period;2&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-11-20</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.2.0.tgz">redis-4.2.0.tgz</a> (230.0kB)&nbsp;&nbsp;<a href="/package/redis/4.2.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;2&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;2&period;0RC3">4&period;2&period;0RC3</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-11-08</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.2.0RC3.tgz">redis-4.2.0RC3.tgz</a> (229.9kB)&nbsp;&nbsp;<a href="/package/redis/4.2.0RC3/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;2&period;0RC3">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;2&period;0RC2">4&period;2&period;0RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-10-26</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.2.0RC2.tgz">redis-4.2.0RC2.tgz</a> (229.4kB)&nbsp;&nbsp;<a href="/package/redis/4.2.0RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;2&period;0RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;2&period;0RC1">4&period;2&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-10-11</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.2.0RC1.tgz">redis-4.2.0RC1.tgz</a> (229.1kB)&nbsp;&nbsp;<a href="/package/redis/4.2.0RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;2&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;1&period;1">4&period;1&period;1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-08-01</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.1.1.tgz">redis-4.1.1.tgz</a> (215.7kB)&nbsp;&nbsp;<a href="/package/redis/4.1.1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;1&period;1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;1&period;0">4&period;1&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-07-10</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.1.0.tgz">redis-4.1.0.tgz</a> (215.6kB)&nbsp;&nbsp;<a href="/package/redis/4.1.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;1&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;1&period;0RC3">4&period;1&period;0RC3</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-06-22</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.1.0RC3.tgz">redis-4.1.0RC3.tgz</a> (215.6kB)&nbsp;&nbsp;<a href="/package/redis/4.1.0RC3/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;1&period;0RC3">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;1&period;0RC2">4&period;1&period;0RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-06-22</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.1.0RC2.tgz">redis-4.1.0RC2.tgz</a> (215.4kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;1&period;0RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;1&period;0RC1">4&period;1&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-06-08</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.1.0RC1.tgz">redis-4.1.0RC1.tgz</a> (214.4kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;1&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;0&period;2">4&period;0&period;2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-04-25</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.0.2.tgz">redis-4.0.2.tgz</a> (207.6kB)&nbsp;&nbsp;<a href="/package/redis/4.0.2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;0&period;2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;0&period;1">4&period;0&period;1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-04-18</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.0.1.tgz">redis-4.0.1.tgz</a> (207.4kB)&nbsp;&nbsp;<a href="/package/redis/4.0.1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;0&period;1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;0&period;0">4&period;0&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-03-17</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.0.0.tgz">redis-4.0.0.tgz</a> (207.4kB)&nbsp;&nbsp;<a href="/package/redis/4.0.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;0&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;0&period;0RC2">4&period;0&period;0RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-03-03</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.0.0RC2.tgz">redis-4.0.0RC2.tgz</a> (207.4kB)&nbsp;&nbsp;<a href="/package/redis/4.0.0RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;0&period;0RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;4&period;0&period;0RC1">4&period;0&period;0RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">alpha</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-02-07</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-4.0.0RC1.tgz">redis-4.0.0RC1.tgz</a> (205.7kB)&nbsp;&nbsp;<a href="/package/redis/4.0.0RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=4&period;0&period;0RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;6">3&period;1&period;6</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2018-01-03</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.6.tgz">redis-3.1.6.tgz</a> (195.2kB)&nbsp;&nbsp;<a href="/package/redis/3.1.6/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;6">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;5">3&period;1&period;5</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-12-20</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.5.tgz">redis-3.1.5.tgz</a> (195.2kB)&nbsp;&nbsp;<a href="/package/redis/3.1.5/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;5">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;5RC2">3&period;1&period;5RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-12-10</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.5RC2.tgz">redis-3.1.5RC2.tgz</a> (195.1kB)&nbsp;&nbsp;<a href="/package/redis/3.1.5RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;5RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;5RC1">3&period;1&period;5RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-12-01</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.5RC1.tgz">redis-3.1.5RC1.tgz</a> (195.0kB)&nbsp;&nbsp;<a href="/package/redis/3.1.5RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;5RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;4">3&period;1&period;4</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-09-27</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.4.tgz">redis-3.1.4.tgz</a> (194.9kB)&nbsp;&nbsp;<a href="/package/redis/3.1.4/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;4">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;4RC3">3&period;1&period;4RC3</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-09-13</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.4RC3.tgz">redis-3.1.4RC3.tgz</a> (194.9kB)&nbsp;&nbsp;<a href="/package/redis/3.1.4RC3/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;4RC3">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;4RC2">3&period;1&period;4RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-09-13</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.4RC2.tgz">redis-3.1.4RC2.tgz</a> (194.9kB)&nbsp;&nbsp;<a href="/package/redis/3.1.4RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;4RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;4RC1">3&period;1&period;4RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-08-31</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.4RC1.tgz">redis-3.1.4RC1.tgz</a> (195.9kB)&nbsp;&nbsp;<a href="/package/redis/3.1.4RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;4RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;3">3&period;1&period;3</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-07-15</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.3.tgz">redis-3.1.3.tgz</a> (191.6kB)&nbsp;&nbsp;<a href="/package/redis/3.1.3/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;3">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;3RC2">3&period;1&period;3RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-06-27</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.3RC2.tgz">redis-3.1.3RC2.tgz</a> (191.6kB)&nbsp;&nbsp;<a href="/package/redis/3.1.3RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;3RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;3RC1">3&period;1&period;3RC1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-06-01</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.3RC1.tgz">redis-3.1.3RC1.tgz</a> (191.6kB)&nbsp;&nbsp;<a href="/package/redis/3.1.3RC1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;3RC1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;2">3&period;1&period;2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-03-24</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.2.tgz">redis-3.1.2.tgz</a> (194.4kB)&nbsp;&nbsp;<a href="/package/redis/3.1.2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;1">3&period;1&period;1</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-02-01</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.1.tgz">redis-3.1.1.tgz</a> (193.9kB)&nbsp;&nbsp;<a href="/package/redis/3.1.1/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;1">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;1RC2">3&period;1&period;1RC2</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">beta</td>
+                <td valign="top" style="background-color: #e8e8e8">2017-01-16</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.1RC2.tgz">redis-3.1.1RC2.tgz</a> (193.9kB)&nbsp;&nbsp;<a href="/package/redis/3.1.1RC2/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;1RC2">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;1&period;0">3&period;1&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2016-12-14</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.1.0.tgz">redis-3.1.0.tgz</a> (192.7kB)&nbsp;&nbsp;<a href="/package/redis/3.1.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;1&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;3&period;0&period;0">3&period;0&period;0</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2016-06-10</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-3.0.0.tgz">redis-3.0.0.tgz</a> (185.3kB)&nbsp;&nbsp;<a href="/package/redis/3.0.0/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=3&period;0&period;0">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;2&period;2&period;8">2&period;2&period;8</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2016-06-08</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-2.2.8.tgz">redis-2.2.8.tgz</a> (187.6kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=2&period;2&period;8">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;2&period;2&period;7">2&period;2&period;7</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2015-03-03</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-2.2.7.tgz">redis-2.2.7.tgz</a> (131.2kB)&nbsp;&nbsp;<a href="/package/redis/2.2.7/windows"><img src="/img/windows-icon.png" />DLL</a></td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=2&period;2&period;7">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;2&period;2&period;5">2&period;2&period;5</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2014-03-19</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-2.2.5.tgz">redis-2.2.5.tgz</a> (94.7kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=2&period;2&period;5">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;2&period;2&period;4">2&period;2&period;4</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2013-09-02</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-2.2.4.tgz">redis-2.2.4.tgz</a> (88.8kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=2&period;2&period;4">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+                    
+            <tr>
+                <th valign="top" style="background-color: #cccccc">
+                    <a href="/package/redis&sol;2&period;2&period;3">2&period;2&period;3</a>
+                </th>
+                <td valign="top" style="background-color: #e8e8e8">stable</td>
+                <td valign="top" style="background-color: #e8e8e8">2013-04-29</td>
+                <td valign="top" style="background-color: #e8e8e8"><a href="/get/redis-2.2.3.tgz">redis-2.2.3.tgz</a> (84.6kB)</td>
+                <td valign="top" style="background-color: #e8e8e8">
+                    <small>
+                    [
+                        <a href="/package-changelog.php?package=redis&release=2&period;2&period;3">
+                            Changelog
+                        </a>
+                    ]
+                    </small>
+                </td>
+            </tr>
+
+            
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <br><br>
+
+<table cellpadding="0" cellspacing="1" style="width: 90%; border: 0px;">
+    <tr>
+        <td style="background-color: #000000">
+            <table cellpadding="2" cellspacing="1" style="width: 100%; border: 0px;">
+                <tr style="background-color: #CCCCCC;">
+                    <th colspan="2">Dependencies</th>
+                </tr>
+
+    
+                                                                            
+            <tr>
+                <th valign="top" style="background-color: #cccccc">Release 6.3.0:</th>
+                <td valign="top" style="background-color: #e8e8e8">PHP Version: PHP 7.4.0 or newer<br />PEAR Package: <a href="https://pear.php.net/package/PEAR">PEAR</a> 1.4.0b1 or newer<br /></td>
+            </tr>
+            
+                                                                            
+            <tr>
+                <th valign="top" style="background-color: #cccccc">Release 6.3.0RC1:</th>
+                <td valign="top" style="background-color: #e8e8e8">PHP Version: PHP 7.4.0 or newer<br />PEAR Package: <a href="https://pear.php.net/package/PEAR">PEAR</a> 1.4.0b1 or newer<br /></td>
+            </tr>
+            
+                                                                            
+            <tr>
+                <th valign="top" style="background-color: #cccccc">Release 6.2.0:</th>
+                <td valign="top" style="background-color: #e8e8e8">PHP Version: PHP 7.4.0 or newer<br />PEAR Package: <a href="https://pear.php.net/package/PEAR">PEAR</a> 1.4.0b1 or newer<br /></td>
+            </tr>
+            
+            <tr>
+            <td style="background-color: #e8e8e8" colspan="2">
+                Dependencies for older releases can be found on the release overview page.
+            </td>
+        </tr>
+                </table>
+        </td>
+    </tr>
+</table>
+
+
+        </td>
+
+        
+    </tr>
+</table>
+
+<table class="foot" cellspacing="0" cellpadding="0">
+    <tr>
+        <td class="foot-bar" colspan="2">
+            <a href="/about/privacy.php" class="menuBlack">PRIVACY POLICY</a>
+            &nbsp;|&nbsp;
+            <a href="/credits.php" class="menuBlack">CREDITS</a>
+            <br>
+        </td>
+    </tr>
+
+    <tr>
+        <td class="foot-copy">
+            <small>
+                <a href="/copyright.php">Copyright &copy; 2001-2025 The PHP Group</a><br>
+                All rights reserved.<br>
+            </small>
+        </td>
+        <td class="foot-source">
+            <small>
+                Last updated: Wed Sep 03 10:50:24 2025 UTC<br>
+                Bandwidth and hardware provided by: <a href="https://www.pair.com/">pair Networks</a>
+            </small>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
+
