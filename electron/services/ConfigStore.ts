@@ -92,6 +92,7 @@ export class ConfigStore {
       join(this.basePath, "nginx", "sites-enabled"),
       join(this.basePath, "nginx", "ssl"),
       join(this.basePath, "redis"),
+      join(this.basePath, "nodejs"),
       join(this.basePath, "logs"),
       join(this.basePath, "temp"),
       join(this.basePath, "www"),
