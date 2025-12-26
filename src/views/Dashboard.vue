@@ -248,10 +248,9 @@
               class="mini-site-card"
             >
               <a 
-                :href="(site.ssl ? 'https://' : 'http://') + site.domain" 
-                target="_blank" 
+                href="#"
                 class="site-domain-link"
-                @click.stop
+                @click.prevent="openSite(site)"
               >
                 {{ site.domain }}
                 <el-icon class="link-icon"><Link /></el-icon>
@@ -277,10 +276,16 @@
           <el-icon><InfoFilled /></el-icon>
           安装路径
         </span>
-        <el-button size="small" @click="openBasePath">
-          <el-icon><FolderOpened /></el-icon>
-          打开目录
-        </el-button>
+        <div class="card-actions">
+          <el-button size="small" @click="showLogViewer = true">
+            <el-icon><Document /></el-icon>
+            查看日志
+          </el-button>
+          <el-button size="small" @click="openBasePath">
+            <el-icon><FolderOpened /></el-icon>
+            打开目录
+          </el-button>
+        </div>
       </div>
       <div class="card-content">
         <div class="path-display">
@@ -289,14 +294,23 @@
         </div>
       </div>
     </div>
+
+    <!-- 日志查看器 -->
+    <LogViewer v-model="showLogViewer" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Link, Promotion } from '@element-plus/icons-vue'
+import { Link, Promotion, Document } from '@element-plus/icons-vue'
 import { useServiceStore } from '@/stores/serviceStore'
+import LogViewer from '@/components/LogViewer.vue'
+
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'Dashboard'
+})
 
 const store = useServiceStore()
 
@@ -352,6 +366,7 @@ const basePath = computed(() => store.basePath)
 
 const settingPhp = ref('')
 const settingNode = ref('')
+const showLogViewer = ref(false)
 
 const startService = async (service: Service) => {
   serviceLoadingState.value[service.name] = true
@@ -533,6 +548,12 @@ const openBasePath = async () => {
   }
 }
 
+// 在默认浏览器中打开站点
+const openSite = (site: { domain: string, ssl: boolean }) => {
+  const protocol = site.ssl ? 'https' : 'http'
+  window.electronAPI?.openExternal(`${protocol}://${site.domain}`)
+}
+
 const setActivePhp = async (version: string) => {
   settingPhp.value = version
   try {
@@ -570,8 +591,15 @@ const setActiveNode = async (version: string) => {
 }
 
 onMounted(async () => {
-  // 总是刷新数据以确保数据最新
-  await store.refreshAll()
+  // 首次加载：如果没有数据则全量刷新
+  if (store.phpVersions.length === 0 && store.nodeVersions.length === 0) {
+    await store.refreshAll()
+  }
+})
+
+// 从缓存激活时静默刷新状态（不会闪烁因为已有数据）
+onActivated(async () => {
+  await store.refreshServiceStatus()
 })
 </script>
 

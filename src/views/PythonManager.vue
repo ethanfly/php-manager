@@ -182,6 +182,11 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'PythonManager'
+})
+
 interface PythonVersion {
   version: string
   path: string

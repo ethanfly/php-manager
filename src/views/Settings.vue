@@ -111,7 +111,13 @@
             </div>
             <div class="app-details">
               <h2 class="app-title">PHPer 开发环境管理器</h2>
-              <p class="app-version">版本 1.0.0</p>
+              <p class="app-version">
+                版本 {{ appVersion.version }}
+                <span v-if="appVersion.buildDate" class="build-date">
+                  ({{ appVersion.buildDate }})
+                </span>
+                <el-tag v-if="!appVersion.isPackaged" type="warning" size="small" style="margin-left: 8px">开发版</el-tag>
+              </p>
               <p class="app-desc">
                 一站式 PHP 开发环境管理工具，支持 PHP、MySQL、Nginx、Redis、Node.js 的安装和管理。
               </p>
@@ -145,6 +151,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Monitor } from '@element-plus/icons-vue'
 
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'Settings'
+})
+
 interface ServiceAutoStart {
   name: string
   displayName: string
@@ -169,6 +180,13 @@ const services = reactive<ServiceAutoStart[]>([
   { name: 'redis', displayName: 'Redis', description: '开机时自动启动 Redis 服务（独立于应用）', autoStart: false }
 ])
 
+const appVersion = reactive({
+  version: '1.0.0',
+  buildTime: '',
+  buildDate: '',
+  isPackaged: false
+})
+
 const loadSettings = async () => {
   try {
     basePath.value = await window.electronAPI?.config.getBasePath() || ''
@@ -176,6 +194,15 @@ const loadSettings = async () => {
     // 加载应用设置
     appSettings.autoLaunch = await window.electronAPI?.app?.getAutoLaunch() || false
     appSettings.startMinimized = await window.electronAPI?.app?.getStartMinimized() || false
+    
+    // 加载版本信息
+    const versionInfo = await window.electronAPI?.app?.getVersion()
+    if (versionInfo) {
+      appVersion.version = versionInfo.version
+      appVersion.buildTime = versionInfo.buildTime
+      appVersion.buildDate = versionInfo.buildDate
+      appVersion.isPackaged = versionInfo.isPackaged
+    }
     
     // 加载服务自启动设置
     for (const service of services) {
@@ -315,6 +342,15 @@ onMounted(() => {
       font-size: 14px;
       color: var(--text-muted);
       margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      
+      .build-date {
+        font-size: 12px;
+        color: var(--text-muted);
+        opacity: 0.8;
+      }
     }
     
     .app-desc {

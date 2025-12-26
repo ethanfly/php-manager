@@ -89,6 +89,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'HostsManager'
+})
+
 interface HostEntry {
   ip: string
   domain: string

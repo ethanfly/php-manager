@@ -62,10 +62,10 @@
 
       <!-- 内容区 -->
       <main class="content">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
+        <router-view v-slot="{ Component, route }">
+          <keep-alive :include="cachedViews">
+            <component :is="Component" :key="route.path" />
+          </keep-alive>
         </router-view>
       </main>
     </div>
@@ -82,6 +82,21 @@ const store = useServiceStore()
 const isDark = ref(true)
 const startingAll = ref(false)
 const stoppingAll = ref(false)
+
+// 缓存的视图列表 - 避免页面切换闪烁
+const cachedViews = [
+  'Dashboard',
+  'PhpManager',
+  'MysqlManager',
+  'NginxManager',
+  'RedisManager',
+  'NodeManager',
+  'PythonManager',
+  'GitManager',
+  'SitesManager',
+  'HostsManager',
+  'Settings'
+]
 
 // 从 store 获取服务状态
 const serviceStatus = computed(() => ({
@@ -352,14 +367,5 @@ onUnmounted(() => {
   background: var(--bg-content);
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
 </style>
 

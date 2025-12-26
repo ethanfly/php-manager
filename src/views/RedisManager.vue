@@ -75,8 +75,12 @@
                 重启
               </el-button>
               <el-button @click="showConfig">
-                <el-icon><Document /></el-icon>
+                <el-icon><Setting /></el-icon>
                 编辑配置
+              </el-button>
+              <el-button @click="openLogDirectory">
+                <el-icon><Document /></el-icon>
+                日志
               </el-button>
             </div>
           </div>
@@ -184,10 +188,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, onActivated } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { InfoFilled } from '@element-plus/icons-vue'
+import { InfoFilled, Setting } from '@element-plus/icons-vue'
 import { useServiceStore } from '@/stores/serviceStore'
+
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'RedisManager'
+})
 
 const store = useServiceStore()
 
@@ -380,6 +389,19 @@ const saveConfig = async () => {
     ElMessage.error(error.message)
   } finally {
     savingConfig.value = false
+  }
+}
+
+// 打开 Redis 日志目录
+const openLogDirectory = async () => {
+  try {
+    const basePath = await window.electronAPI?.config.getBasePath()
+    if (basePath) {
+      // Redis 日志通常与配置文件在同一目录
+      await window.electronAPI?.openPath(basePath + '\\redis')
+    }
+  } catch (error: any) {
+    ElMessage.error('打开目录失败: ' + error.message)
   }
 }
 

@@ -1,7 +1,7 @@
 import { ConfigStore } from './ConfigStore'
 import { exec, spawn } from 'child_process'
 import { promisify } from 'util'
-import { existsSync, writeFileSync, readFileSync, mkdirSync, readdirSync } from 'fs'
+import { existsSync, writeFileSync, readFileSync, mkdirSync, readdirSync, unlinkSync } from 'fs'
 import { join } from 'path'
 
 const execAsync = promisify(exec)
@@ -562,13 +562,40 @@ export class ServiceManager {
   }
 
   private async startProcess(exe: string, args: string[], cwd: string): Promise<void> {
-    const child = spawn(exe, args, {
-      cwd,
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true
-    })
-    child.unref()
+    // 使用 VBScript 来完全隐藏窗口启动进程
+    const argsStr = args.map(a => `"${a}"`).join(' ')
+    const command = args.length > 0 ? `"${exe}" ${argsStr}` : `"${exe}"`
+
+    const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run ${JSON.stringify(command)}, 0, False`
+    const vbsPath = join(cwd, `start_${Date.now()}.vbs`)
+
+    try {
+      writeFileSync(vbsPath, vbsContent)
+      await execAsync(`cscript //nologo "${vbsPath}"`, {
+        cwd,
+        windowsHide: true,
+        timeout: 10000
+      })
+      // 延迟删除 VBS 文件
+      setTimeout(() => {
+        try {
+          if (existsSync(vbsPath)) {
+            unlinkSync(vbsPath)
+          }
+        } catch (e) {
+          // 忽略删除失败
+        }
+      }, 2000)
+    } catch (error) {
+      // 如果 VBS 方式失败，回退到 spawn
+      const child = spawn(exe, args, {
+        cwd,
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true
+      })
+      child.unref()
+    }
   }
 }
 

@@ -16,6 +16,10 @@
           站点列表
         </span>
         <div class="header-actions">
+          <el-button @click="showLogViewer = true">
+            <el-icon><Document /></el-icon>
+            站点日志
+          </el-button>
           <el-button type="success" @click="showCreateLaravelDialog = true">
             <el-icon><Promotion /></el-icon>
             创建 Laravel 项目
@@ -328,14 +332,23 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 日志查看器 -->
+    <LogViewer v-model="showLogViewer" initial-tab="sites" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { FolderOpened } from '@element-plus/icons-vue'
+import { FolderOpened, Document } from '@element-plus/icons-vue'
 import { useServiceStore } from '@/stores/serviceStore'
+import LogViewer from '@/components/LogViewer.vue'
+
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'SitesManager'
+})
 
 const store = useServiceStore()
 
@@ -407,6 +420,8 @@ const editForm = reactive<SiteConfig>({
 // 创建 Laravel 项目
 const showCreateLaravelDialog = ref(false)
 const creatingLaravel = ref(false)
+const showLogViewer = ref(false)
+
 const laravelForm = reactive({
   projectName: '',
   targetDir: '',

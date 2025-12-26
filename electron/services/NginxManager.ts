@@ -331,9 +331,12 @@ export class NginxManager {
         return { success: true, message: 'Nginx 已经在运行' }
       }
 
-      // 启动 Nginx
-      const child = spawn(nginxExe, [], {
-        cwd: nginxPath,
+      // 使用 VBScript 静默启动 Nginx
+      const vbsPath = join(nginxPath, 'start_nginx.vbs')
+      const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.CurrentDirectory = "${nginxPath.replace(/\\/g, '\\\\')}"\nWshShell.Run """${nginxExe.replace(/\\/g, '\\\\')}""", 0, False`
+      writeFileSync(vbsPath, vbsContent)
+      
+      const child = spawn('wscript.exe', [vbsPath], {
         detached: true,
         stdio: 'ignore',
         windowsHide: true

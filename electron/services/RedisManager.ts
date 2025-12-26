@@ -307,15 +307,16 @@ export class RedisManager {
         await this.createDefaultConfig()
       }
 
-      // 使用相对路径启动（避免 Cygwin 路径问题）
-      // Redis Windows 版本使用 Cygwin，需要在正确的工作目录下用相对路径
+      // 使用 VBScript 静默启动 Redis（避免黑窗口闪烁）
       const configFileName = 'redis.windows.conf'
-      const child = spawn(redisServer, [configFileName], {
-        cwd: redisPath,
+      const vbsPath = join(redisPath, 'start_redis.vbs')
+      const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.CurrentDirectory = "${redisPath.replace(/\\/g, '\\\\')}"\nWshShell.Run """${redisServer.replace(/\\/g, '\\\\')}""" & " " & "${configFileName}", 0, False`
+      writeFileSync(vbsPath, vbsContent)
+      
+      const child = spawn('wscript.exe', [vbsPath], {
         detached: true,
         stdio: 'ignore',
-        windowsHide: true,
-        shell: false
+        windowsHide: true
       })
       child.unref()
 

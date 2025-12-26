@@ -74,8 +74,12 @@
                 <el-icon><Refresh /></el-icon>
                 重载配置
               </el-button>
-              <el-button @click="showConfig">
+              <el-button @click="showLogViewerDialog('nginx')">
                 <el-icon><Document /></el-icon>
+                查看日志
+              </el-button>
+              <el-button @click="showConfig">
+                <el-icon><Setting /></el-icon>
                 编辑配置
               </el-button>
             </div>
@@ -180,14 +184,23 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 日志查看器 -->
+    <LogViewer v-model="showLogViewer" :initial-tab="logViewerTab" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, onActivated } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { InfoFilled } from '@element-plus/icons-vue'
+import { InfoFilled, Setting } from '@element-plus/icons-vue'
 import { useServiceStore } from '@/stores/serviceStore'
+import LogViewer from '@/components/LogViewer.vue'
+
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'NginxManager'
+})
 
 const store = useServiceStore()
 
@@ -218,6 +231,15 @@ const downloadProgress = reactive({
 const showConfigDialog = ref(false)
 const configContent = ref('')
 const savingConfig = ref(false)
+
+// 日志查看器
+const showLogViewer = ref(false)
+const logViewerTab = ref<'nginx' | 'php' | 'mysql' | 'sites'>('nginx')
+
+const showLogViewerDialog = (tab: 'nginx' | 'sites') => {
+  logViewerTab.value = tab
+  showLogViewer.value = true
+}
 
 const loadData = async () => {
   try {

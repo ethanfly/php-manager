@@ -140,6 +140,11 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Promotion, Box, InfoFilled, Loading } from '@element-plus/icons-vue'
 
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'NodeManager'
+})
+
 interface NodeVersion {
   version: string
   path: string

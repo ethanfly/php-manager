@@ -177,6 +177,11 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'GitManager'
+})
+
 interface GitVersion {
   version: string
   path: string

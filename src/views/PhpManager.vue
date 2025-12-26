@@ -45,11 +45,47 @@
                 <div class="version-name">
                   PHP {{ version.version }}
                   <el-tag v-if="version.isActive" type="success" size="small" class="ml-2">当前使用</el-tag>
+                  <el-tag 
+                    v-if="isCgiRunning(version.version)" 
+                    type="success" 
+                    size="small" 
+                    class="ml-2"
+                  >
+                    CGI:{{ getCgiPort(version.version) }}
+                  </el-tag>
                 </div>
                 <div class="version-path">{{ version.path }}</div>
               </div>
             </div>
             <div class="version-actions">
+              <!-- CGI 控制按钮 -->
+              <el-tooltip 
+                :content="isCgiRunning(version.version) 
+                  ? `停止 CGI (端口 ${getCgiPort(version.version)})` 
+                  : `启动 CGI (端口 ${getCgiPort(version.version)})`"
+                placement="top"
+              >
+                <el-button 
+                  v-if="isCgiRunning(version.version)"
+                  type="danger" 
+                  size="small" 
+                  @click="stopCgi(version.version)"
+                  :loading="cgiLoading[version.version]"
+                >
+                  <el-icon><VideoPause /></el-icon>
+                  CGI
+                </el-button>
+                <el-button 
+                  v-else
+                  type="success" 
+                  size="small" 
+                  @click="startCgi(version.version)"
+                  :loading="cgiLoading[version.version]"
+                >
+                  <el-icon><VideoPlay /></el-icon>
+                  CGI
+                </el-button>
+              </el-tooltip>
               <el-button 
                 v-if="!version.isActive" 
                 type="primary" 
@@ -63,8 +99,12 @@
                 扩展
               </el-button>
               <el-button size="small" @click="showConfig(version)">
-                <el-icon><Document /></el-icon>
+                <el-icon><EditPen /></el-icon>
                 配置
+              </el-button>
+              <el-button size="small" @click="showLogViewerDialog">
+                <el-icon><Document /></el-icon>
+                日志
               </el-button>
               <el-button 
                 type="danger" 
@@ -366,14 +406,23 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 日志查看器 -->
+    <LogViewer v-model="showLogViewer" initial-tab="php" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, onActivated } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { FolderOpened, InfoFilled } from '@element-plus/icons-vue'
+import { FolderOpened, InfoFilled, VideoPlay, VideoPause, EditPen } from '@element-plus/icons-vue'
 import { useServiceStore } from '@/stores/serviceStore'
+import LogViewer from '@/components/LogViewer.vue'
+
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'PhpManager'
+})
 
 const store = useServiceStore()
 
@@ -405,6 +454,7 @@ interface AvailableExtension {
 }
 
 const loading = ref(false)
+const initialLoaded = ref(false)  // 标记是否已完成首次加载
 const installedVersions = ref<PhpVersion[]>([])
 const availableVersions = ref<AvailableVersion[]>([])
 const showInstallDialog = ref(false)
@@ -415,6 +465,30 @@ const downloadProgress = reactive({
   downloaded: 0,
   total: 0
 })
+
+// CGI 状态管理
+interface CgiStatus {
+  version: string
+  port: number
+  running: boolean
+}
+const cgiStatus = ref<CgiStatus[]>([])
+const cgiLoading = ref<Record<string, boolean>>({})
+
+// 获取指定版本的 CGI 状态
+const getCgiStatus = (version: string): CgiStatus | undefined => {
+  return cgiStatus.value.find(s => s.version === version)
+}
+
+// 判断 CGI 是否运行中
+const isCgiRunning = (version: string): boolean => {
+  return getCgiStatus(version)?.running ?? false
+}
+
+// 获取 CGI 端口
+const getCgiPort = (version: string): number => {
+  return getCgiStatus(version)?.port ?? 9000
+}
 
 const showExtensionsDialog = ref(false)
 const loadingExtensions = ref(false)
@@ -465,6 +539,13 @@ const showConfigDialog = ref(false)
 const configContent = ref('')
 const savingConfig = ref(false)
 
+// 日志查看器
+const showLogViewer = ref(false)
+
+const showLogViewerDialog = () => {
+  showLogViewer.value = true
+}
+
 // Composer 相关
 const composerStatus = ref<{
   installed: boolean
@@ -486,6 +567,51 @@ const loadVersions = async () => {
     store.refreshServiceStatus()
   } catch (error: any) {
     console.error('加载版本失败:', error)
+  }
+}
+
+// 加载 CGI 状态
+const loadCgiStatus = async () => {
+  try {
+    cgiStatus.value = await window.electronAPI?.service.getPhpCgiStatus() || []
+  } catch (error: any) {
+    console.error('加载 CGI 状态失败:', error)
+  }
+}
+
+// 启动 CGI
+const startCgi = async (version: string) => {
+  cgiLoading.value[version] = true
+  try {
+    const result = await window.electronAPI?.service.startPhpCgiVersion(version)
+    if (result?.success) {
+      ElMessage.success(result.message)
+      await loadCgiStatus()
+    } else {
+      ElMessage.error(result?.message || '启动失败')
+    }
+  } catch (error: any) {
+    ElMessage.error('启动失败: ' + error.message)
+  } finally {
+    cgiLoading.value[version] = false
+  }
+}
+
+// 停止 CGI
+const stopCgi = async (version: string) => {
+  cgiLoading.value[version] = true
+  try {
+    const result = await window.electronAPI?.service.stopPhpCgiVersion(version)
+    if (result?.success) {
+      ElMessage.success(result.message)
+      await loadCgiStatus()
+    } else {
+      ElMessage.error(result?.message || '停止失败')
+    }
+  } catch (error: any) {
+    ElMessage.error('停止失败: ' + error.message)
+  } finally {
+    cgiLoading.value[version] = false
   }
 }
 
@@ -812,10 +938,30 @@ const formatSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
-onMounted(() => {
-  loadVersions()
+onMounted(async () => {
+  // 使用 store 中的缓存数据进行首次渲染（避免闪烁）
+  if (store.phpVersions.length > 0) {
+    installedVersions.value = store.phpVersions.map(v => ({
+      version: v.version,
+      path: v.path,
+      isActive: v.isActive
+    }))
+  }
+  
+  // 首次加载数据
+  loading.value = installedVersions.value.length === 0
+  
+  await Promise.all([
+    loadVersions(),
+    loadCgiStatus(),
+    loadComposerStatus()
+  ])
+  
+  loading.value = false
+  initialLoaded.value = true
+  
+  // 异步加载可用版本列表（不阻塞首屏）
   loadAvailableVersions()
-  loadComposerStatus()
   
   // 监听下载进度
   window.electronAPI?.onDownloadProgress((data: any) => {
@@ -829,6 +975,13 @@ onMounted(() => {
       extDownloadProgress.total = data.total
     }
   })
+})
+
+// 从缓存激活时静默刷新 CGI 状态
+onActivated(async () => {
+  if (initialLoaded.value) {
+    await loadCgiStatus()
+  }
 })
 
 onUnmounted(() => {

@@ -17,6 +17,7 @@ import { ServiceManager } from "./services/ServiceManager";
 import { HostsManager } from "./services/HostsManager";
 import { GitManager } from "./services/GitManager";
 import { PythonManager } from "./services/PythonManager";
+import { LogManager } from "./services/LogManager";
 import { ConfigStore } from "./services/ConfigStore";
 
 // 获取图标路径
@@ -120,6 +121,7 @@ const serviceManager = new ServiceManager(configStore);
 const hostsManager = new HostsManager();
 const gitManager = new GitManager(configStore);
 const pythonManager = new PythonManager(configStore);
+const logManager = new LogManager(configStore);
 
 function createWindow() {
   const appIcon = createWindowIcon();
@@ -575,9 +577,11 @@ ipcMain.handle("config:setBasePath", (_, path: string) =>
 );
 
 // ==================== 应用设置 ====================
-// 设置开机自启（以管理员模式，使用任务计划程序）
+// 设置开机自启（以管理员模式，使用任务计划程序，静默启动）
 ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
-  const { execSync } = require("child_process");
+  const { execSync, exec } = require("child_process");
+  const { writeFileSync, unlinkSync, existsSync } = require("fs");
+  const { join } = require("path");
   const exePath = app.getPath("exe");
   const taskName = "PHPerDevManager";
 
@@ -601,12 +605,18 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
         // 忽略删除失败（可能任务不存在）
       }
 
-      // 创建任务计划程序任务，以最高权限运行
-      const command = `schtasks /create /tn "${taskName}" /tr "\\"${exePath}\\"" /sc onlogon /rl highest /f`;
+      // 创建 VBS 启动脚本（确保静默启动）
+      const appDir = require("path").dirname(exePath);
+      const vbsPath = join(appDir, "silent_start.vbs");
+      const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run """${exePath.replace(/\\/g, "\\\\")}""", 0, False`;
+      writeFileSync(vbsPath, vbsContent);
+
+      // 创建任务计划程序任务，运行 VBS 脚本实现静默启动
+      const command = `schtasks /create /tn "${taskName}" /tr "wscript.exe \\"${vbsPath}\\"" /sc onlogon /rl highest /f`;
       execSync(command, { encoding: "buffer", windowsHide: true });
 
       configStore.set("autoLaunch", true);
-      return { success: true, message: "已启用开机自启（管理员模式）" };
+      return { success: true, message: "已启用开机自启（静默模式）" };
     } else {
       // 删除任务计划程序任务
       try {
@@ -617,6 +627,18 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
       } catch (e) {
         // 忽略删除失败
       }
+      
+      // 删除 VBS 脚本
+      const appDir = require("path").dirname(exePath);
+      const vbsPath = join(appDir, "silent_start.vbs");
+      if (existsSync(vbsPath)) {
+        try {
+          unlinkSync(vbsPath);
+        } catch (e) {
+          // 忽略删除失败
+        }
+      }
+      
       configStore.set("autoLaunch", false);
       return { success: true, message: "已禁用开机自启" };
     }
@@ -650,6 +672,38 @@ ipcMain.handle("app:getAutoLaunch", async () => {
   }
 });
 
+// 获取应用版本信息
+ipcMain.handle("app:getVersion", async () => {
+  const { existsSync, readFileSync } = require("fs");
+  const { join } = require("path");
+  
+  const version = app.getVersion();
+  let buildTime = "";
+  let buildDate = "";
+  
+  // 尝试读取版本信息文件
+  try {
+    const versionFilePath = app.isPackaged
+      ? join(process.resourcesPath, "public", "version.json")
+      : join(__dirname, "..", "public", "version.json");
+    
+    if (existsSync(versionFilePath)) {
+      const versionInfo = JSON.parse(readFileSync(versionFilePath, "utf-8"));
+      buildTime = versionInfo.buildTime || "";
+      buildDate = versionInfo.buildDate || "";
+    }
+  } catch (e) {
+    // 忽略错误
+  }
+  
+  return {
+    version,
+    buildTime,
+    buildDate,
+    isPackaged: app.isPackaged
+  };
+});
+
 // 设置启动时最小化到托盘
 ipcMain.handle("app:setStartMinimized", (_, enabled: boolean) => {
   configStore.set("startMinimized", enabled);
@@ -666,3 +720,13 @@ ipcMain.handle("app:quit", () => {
   isQuitting = true;
   app.quit();
 });
+
+// ==================== 日志管理 ====================
+ipcMain.handle("log:getFiles", () => logManager.getLogFiles());
+ipcMain.handle("log:read", (_, logPath: string, lines?: number) =>
+  logManager.readLog(logPath, lines)
+);
+ipcMain.handle("log:clear", (_, logPath: string) => logManager.clearLog(logPath));
+ipcMain.handle("log:getDirectory", (_, type: 'nginx' | 'php' | 'mysql' | 'sites', version?: string) =>
+  logManager.getLogDirectory(type, version)
+);

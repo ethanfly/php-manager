@@ -87,8 +87,12 @@
                 密码
               </el-button>
               <el-button size="small" @click="showConfig(version)">
-                <el-icon><Document /></el-icon>
+                <el-icon><Setting /></el-icon>
                 配置
+              </el-button>
+              <el-button size="small" @click="showLogViewerDialog">
+                <el-icon><Document /></el-icon>
+                日志
               </el-button>
               <el-button 
                 type="danger" 
@@ -222,14 +226,23 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 日志查看器 -->
+    <LogViewer v-model="showLogViewer" initial-tab="mysql" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, onActivated } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { InfoFilled } from '@element-plus/icons-vue'
+import { InfoFilled, Setting } from '@element-plus/icons-vue'
 import { useServiceStore } from '@/stores/serviceStore'
+import LogViewer from '@/components/LogViewer.vue'
+
+// 定义组件名称以便 KeepAlive 正确缓存
+defineOptions({
+  name: 'MysqlManager'
+})
 
 const store = useServiceStore()
 
@@ -270,6 +283,13 @@ const showConfigDialog = ref(false)
 const configContent = ref('')
 const savingConfig = ref(false)
 const currentVersion = ref('')
+
+// 日志查看器
+const showLogViewer = ref(false)
+
+const showLogViewerDialog = () => {
+  showLogViewer.value = true
+}
 
 const loadVersions = async () => {
   try {

@@ -5,10 +5,14 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build && electron-builder",
+    "build": "node scripts/bump-version.js && vue-tsc --noEmit && vite build && electron-builder",
+    "build:patch": "node scripts/bump-version.js patch && vue-tsc --noEmit && vite build && electron-builder",
+    "build:minor": "node scripts/bump-version.js minor && vue-tsc --noEmit && vite build && electron-builder",
+    "build:major": "node scripts/bump-version.js major && vue-tsc --noEmit && vite build && electron-builder",
+    "build:nobump": "vue-tsc --noEmit && vite build && electron-builder",
     "preview": "vite preview",
     "electron:dev": "vite",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "node scripts/bump-version.js && vite build && electron-builder"
   },
   "author": "PHPer",
   "license": "MIT",

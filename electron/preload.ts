@@ -166,12 +166,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setBasePath: (path: string) => ipcRenderer.invoke('config:setBasePath', path)
   },
 
+  // 日志管理
+  log: {
+    getFiles: () => ipcRenderer.invoke('log:getFiles'),
+    read: (logPath: string, lines?: number) => ipcRenderer.invoke('log:read', logPath, lines),
+    clear: (logPath: string) => ipcRenderer.invoke('log:clear', logPath),
+    getDirectory: (type: 'nginx' | 'php' | 'mysql' | 'sites', version?: string) => 
+      ipcRenderer.invoke('log:getDirectory', type, version)
+  },
+
   // 应用设置
   app: {
     setAutoLaunch: (enabled: boolean) => ipcRenderer.invoke('app:setAutoLaunch', enabled),
     getAutoLaunch: () => ipcRenderer.invoke('app:getAutoLaunch'),
     setStartMinimized: (enabled: boolean) => ipcRenderer.invoke('app:setStartMinimized', enabled),
     getStartMinimized: () => ipcRenderer.invoke('app:getStartMinimized'),
+    getVersion: () => ipcRenderer.invoke('app:getVersion') as Promise<{ version: string; buildTime: string; buildDate: string; isPackaged: boolean }>,
     setAutoStartServices: (enabled: boolean) => ipcRenderer.invoke('app:setAutoStartServices', enabled),
     getAutoStartServices: () => ipcRenderer.invoke('app:getAutoStartServices'),
     quit: () => ipcRenderer.invoke('app:quit')
