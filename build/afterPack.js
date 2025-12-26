@@ -1,7 +1,5 @@
 const path = require('path');
-const { execSync } = require('child_process');
 const fs = require('fs');
-const os = require('os');
 
 exports.default = async function(context) {
   // 只在 Windows 上执行
@@ -16,28 +14,6 @@ exports.default = async function(context) {
   const exePath = path.join(appOutDir, `${productName}.exe`);
   const iconPath = path.join(__dirname, 'icon.ico');
   
-  // rcedit 路径
-  const userHome = os.homedir();
-  const cacheDir = path.join(userHome, 'AppData', 'Local', 'electron-builder', 'Cache', 'winCodeSign');
-  
-  // 查找 rcedit
-  let rceditPath = null;
-  if (fs.existsSync(cacheDir)) {
-    const dirs = fs.readdirSync(cacheDir);
-    for (const dir of dirs) {
-      const possiblePath = path.join(cacheDir, dir, 'rcedit-x64.exe');
-      if (fs.existsSync(possiblePath)) {
-        rceditPath = possiblePath;
-        break;
-      }
-    }
-  }
-  
-  if (!rceditPath) {
-    console.warn('rcedit not found, skipping icon modification');
-    return;
-  }
-  
   if (!fs.existsSync(exePath)) {
     console.warn(`Exe not found: ${exePath}`);
     return;
@@ -49,12 +25,14 @@ exports.default = async function(context) {
   }
   
   try {
+    // 使用 npm 安装的 rcedit 模块
+    const { rcedit } = require('rcedit');
+    
     console.log(`Setting icon for: ${exePath}`);
     console.log(`Using icon: ${iconPath}`);
-    console.log(`Using rcedit: ${rceditPath}`);
     
-    execSync(`"${rceditPath}" "${exePath}" --set-icon "${iconPath}"`, {
-      stdio: 'inherit'
+    await rcedit(exePath, {
+      icon: iconPath
     });
     
     console.log('Icon set successfully!');
@@ -62,4 +40,3 @@ exports.default = async function(context) {
     console.error('Failed to set icon:', error.message);
   }
 };
-

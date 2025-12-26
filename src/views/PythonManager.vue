@@ -533,6 +533,10 @@ onUnmounted(() => {
   .el-form-item {
     margin-bottom: 16px;
   }
+  
+  .el-select {
+    width: 160px;
+  }
 }
 
 .pip-hint {
