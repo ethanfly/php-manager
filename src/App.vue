@@ -97,6 +97,8 @@ const menuItems = [
   { path: '/nginx', label: 'Nginx 管理', icon: 'Connection', service: 'nginx' },
   { path: '/redis', label: 'Redis 管理', icon: 'Grid', service: 'redis' },
   { path: '/nodejs', label: 'Node.js 管理', icon: 'Promotion', service: null },
+  { path: '/python', label: 'Python 管理', icon: 'Platform', service: null },
+  { path: '/git', label: 'Git 管理', icon: 'Share', service: null },
   { path: '/sites', label: '站点管理', icon: 'Monitor', service: null },
   { path: '/hosts', label: 'Hosts 管理', icon: 'Document', service: null },
   { path: '/settings', label: '设置', icon: 'Setting', service: null }

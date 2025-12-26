@@ -31,6 +31,9 @@ export interface SiteConfig {
   isLaravel: boolean;
   ssl: boolean;
   enabled: boolean;
+  // 反向代理配置
+  isProxy?: boolean;
+  proxyTarget?: string;  // 代理目标地址，如 http://127.0.0.1:3000
 }
 
 // 获取应用安装目录下的 data 路径

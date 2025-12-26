@@ -56,16 +56,21 @@
               </div>
             </div>
             <div class="site-meta">
-              <span class="meta-item">
+              <span class="meta-item" v-if="site.isProxy">
+                <el-icon><Link /></el-icon>
+                {{ site.proxyTarget }}
+              </span>
+              <span class="meta-item" v-else>
                 <el-icon><Folder /></el-icon>
                 {{ site.rootPath }}
               </span>
-              <span class="meta-item">
+              <span class="meta-item" v-if="!site.isProxy">
                 <el-icon><Files /></el-icon>
                 PHP {{ site.phpVersion }} (端口 {{ getPhpCgiPort(site.phpVersion) }})
               </span>
             </div>
             <div class="site-tags">
+              <el-tag v-if="site.isProxy" type="primary" size="small">反向代理</el-tag>
               <el-tag v-if="site.isLaravel" type="warning" size="small">Laravel</el-tag>
               <el-tag v-if="site.ssl" type="success" size="small">SSL</el-tag>
               <el-tag :type="site.enabled ? 'success' : 'info'" size="small">
@@ -126,7 +131,7 @@
           <el-input v-model="siteForm.name" placeholder="留空则使用域名作为名称" />
           <span class="form-hint">可选，默认使用域名</span>
         </el-form-item>
-        <el-form-item label="根目录" required>
+        <el-form-item label="根目录" required v-if="!siteForm.isProxy">
           <div class="directory-input">
             <el-input v-model="siteForm.rootPath" placeholder="点击右侧按钮选择目录" readonly />
             <el-button type="primary" @click="selectDirectory" :icon="FolderOpened">
@@ -134,7 +139,7 @@
             </el-button>
           </div>
         </el-form-item>
-        <el-form-item label="PHP 版本" required>
+        <el-form-item label="PHP 版本" required v-if="!siteForm.isProxy">
           <el-select v-model="siteForm.phpVersion" placeholder="选择 PHP 版本">
             <el-option 
               v-for="v in phpVersions" 
@@ -145,7 +150,15 @@
           </el-select>
           <span class="form-hint">每个 PHP 版本使用独立端口的 FastCGI 进程</span>
         </el-form-item>
-        <el-form-item label="Laravel 项目">
+        <el-form-item label="反向代理">
+          <el-switch v-model="siteForm.isProxy" @change="onProxyChange" />
+          <span class="form-hint">开启后将作为反向代理服务器（用于 Node.js、Go 等应用）</span>
+        </el-form-item>
+        <el-form-item label="代理目标" v-if="siteForm.isProxy" required>
+          <el-input v-model="siteForm.proxyTarget" placeholder="例如: http://127.0.0.1:3000" />
+          <span class="form-hint">后端服务地址，支持 WebSocket</span>
+        </el-form-item>
+        <el-form-item label="Laravel 项目" v-if="!siteForm.isProxy">
           <el-switch v-model="siteForm.isLaravel" />
           <span class="form-hint">开启后将自动配置 Laravel 伪静态规则</span>
         </el-form-item>
@@ -208,7 +221,15 @@
           <el-input v-model="editForm.name" disabled />
           <span class="form-hint">站点名称不可修改</span>
         </el-form-item>
-        <el-form-item label="根目录" required>
+        <el-form-item label="反向代理">
+          <el-switch v-model="editForm.isProxy" @change="onEditProxyChange" />
+          <span class="form-hint">开启后将作为反向代理服务器</span>
+        </el-form-item>
+        <el-form-item label="代理目标" v-if="editForm.isProxy" required>
+          <el-input v-model="editForm.proxyTarget" placeholder="例如: http://127.0.0.1:3000" />
+          <span class="form-hint">后端服务地址，支持 WebSocket</span>
+        </el-form-item>
+        <el-form-item label="根目录" required v-if="!editForm.isProxy">
           <div class="directory-input">
             <el-input v-model="editForm.rootPath" placeholder="点击右侧按钮选择目录" readonly />
             <el-button type="primary" @click="selectEditDirectory" :icon="FolderOpened">
@@ -216,7 +237,7 @@
             </el-button>
           </div>
         </el-form-item>
-        <el-form-item label="PHP 版本" required>
+        <el-form-item label="PHP 版本" required v-if="!editForm.isProxy">
           <el-select v-model="editForm.phpVersion" placeholder="选择 PHP 版本">
             <el-option 
               v-for="v in phpVersions" 
@@ -227,7 +248,7 @@
           </el-select>
           <span class="form-hint">修改后需重新加载 Nginx 配置</span>
         </el-form-item>
-        <el-form-item label="Laravel 项目">
+        <el-form-item label="Laravel 项目" v-if="!editForm.isProxy">
           <el-switch v-model="editForm.isLaravel" />
           <span class="form-hint">开启后将自动配置 Laravel 伪静态规则</span>
         </el-form-item>
@@ -326,6 +347,8 @@ interface SiteConfig {
   isLaravel: boolean
   ssl: boolean
   enabled: boolean
+  isProxy?: boolean
+  proxyTarget?: string
 }
 
 const loading = ref(false)
@@ -353,7 +376,9 @@ const siteForm = reactive<SiteConfig>({
   phpVersion: '',
   isLaravel: false,
   ssl: false,
-  enabled: true
+  enabled: true,
+  isProxy: false,
+  proxyTarget: ''
 })
 
 const showSSLDialogVisible = ref(false)
@@ -374,7 +399,9 @@ const editForm = reactive<SiteConfig>({
   phpVersion: '',
   isLaravel: false,
   ssl: false,
-  enabled: true
+  enabled: true,
+  isProxy: false,
+  proxyTarget: ''
 })
 
 // 创建 Laravel 项目
@@ -423,6 +450,31 @@ const selectDirectory = async () => {
   }
 }
 
+// 反向代理开关变化
+const onProxyChange = (value: boolean) => {
+  if (value) {
+    // 开启反向代理时，清空不需要的字段
+    siteForm.rootPath = ''
+    siteForm.phpVersion = ''
+    siteForm.isLaravel = false
+    // 设置默认代理目标
+    if (!siteForm.proxyTarget) {
+      siteForm.proxyTarget = 'http://127.0.0.1:3000'
+    }
+  }
+}
+
+const onEditProxyChange = (value: boolean) => {
+  if (value) {
+    editForm.rootPath = ''
+    editForm.phpVersion = ''
+    editForm.isLaravel = false
+    if (!editForm.proxyTarget) {
+      editForm.proxyTarget = 'http://127.0.0.1:3000'
+    }
+  }
+}
+
 // 自动填充站点名称（当域名输入完成后）
 const autoFillName = () => {
   if (!siteForm.name && siteForm.domain) {
@@ -437,9 +489,17 @@ const addSite = async () => {
     siteForm.name = siteForm.domain.replace(/\.(test|local|dev|localhost)$/i, '')
   }
   
-  if (!siteForm.domain || !siteForm.rootPath || !siteForm.phpVersion) {
-    ElMessage.warning('请填写所有必填字段（域名、根目录、PHP版本）')
-    return
+  // 根据站点类型验证必填字段
+  if (siteForm.isProxy) {
+    if (!siteForm.domain || !siteForm.proxyTarget) {
+      ElMessage.warning('请填写所有必填字段（域名、代理目标）')
+      return
+    }
+  } else {
+    if (!siteForm.domain || !siteForm.rootPath || !siteForm.phpVersion) {
+      ElMessage.warning('请填写所有必填字段（域名、根目录、PHP版本）')
+      return
+    }
   }
   
   // 最终确保有站点名称
@@ -457,7 +517,9 @@ const addSite = async () => {
       phpVersion: siteForm.phpVersion,
       isLaravel: siteForm.isLaravel,
       ssl: siteForm.ssl,
-      enabled: siteForm.enabled
+      enabled: siteForm.enabled,
+      isProxy: siteForm.isProxy,
+      proxyTarget: siteForm.proxyTarget
     }
     const result = await window.electronAPI?.nginx.addSite(siteData)
     if (result?.success) {
@@ -477,7 +539,9 @@ const addSite = async () => {
         phpVersion: phpVersions.value[0]?.version || '',
         isLaravel: false,
         ssl: false,
-        enabled: true
+        enabled: true,
+        isProxy: false,
+        proxyTarget: ''
       })
       
       // 重新加载 Nginx 配置
@@ -568,7 +632,9 @@ const showEditDialog = (site: SiteConfig) => {
     phpVersion: site.phpVersion,
     isLaravel: site.isLaravel,
     ssl: site.ssl,
-    enabled: site.enabled
+    enabled: site.enabled,
+    isProxy: site.isProxy || false,
+    proxyTarget: site.proxyTarget || ''
   })
   showEditSiteDialog.value = true
 }
@@ -587,9 +653,17 @@ const selectEditDirectory = async () => {
 
 // 更新站点
 const updateSite = async () => {
-  if (!editForm.domain || !editForm.rootPath || !editForm.phpVersion) {
-    ElMessage.warning('请填写所有必填字段')
-    return
+  // 根据站点类型验证必填字段
+  if (editForm.isProxy) {
+    if (!editForm.domain || !editForm.proxyTarget) {
+      ElMessage.warning('请填写所有必填字段（域名、代理目标）')
+      return
+    }
+  } else {
+    if (!editForm.domain || !editForm.rootPath || !editForm.phpVersion) {
+      ElMessage.warning('请填写所有必填字段')
+      return
+    }
   }
   
   updating.value = true
@@ -602,7 +676,9 @@ const updateSite = async () => {
       phpVersion: editForm.phpVersion,
       isLaravel: editForm.isLaravel,
       ssl: editForm.ssl,
-      enabled: editForm.enabled
+      enabled: editForm.enabled,
+      isProxy: editForm.isProxy,
+      proxyTarget: editForm.proxyTarget
     }
     
     const result = await window.electronAPI?.nginx.updateSite(editingOriginalName.value, siteData)

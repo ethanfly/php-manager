@@ -389,9 +389,14 @@ export class NginxManager {
   async addSite(site: SiteConfig): Promise<{ success: boolean; message: string }> {
     try {
       // 生成配置文件
-      const config = site.isLaravel 
-        ? this.generateLaravelSiteConfig(site)
-        : this.generateSiteConfig(site)
+      let config: string
+      if (site.isProxy && site.proxyTarget) {
+        config = this.generateProxySiteConfig(site)
+      } else if (site.isLaravel) {
+        config = this.generateLaravelSiteConfig(site)
+      } else {
+        config = this.generateSiteConfig(site)
+      }
 
       const sitesAvailable = this.configStore.getSitesAvailablePath()
       const configPath = join(sitesAvailable, `${site.name}.conf`)
@@ -450,9 +455,14 @@ export class NginxManager {
       const wasEnabled = existsSync(enabledPath)
       
       // 生成新的配置内容
-      const config = site.isLaravel 
-        ? this.generateLaravelSiteConfig(site)
-        : this.generateSiteConfig(site)
+      let config: string
+      if (site.isProxy && site.proxyTarget) {
+        config = this.generateProxySiteConfig(site)
+      } else if (site.isLaravel) {
+        config = this.generateLaravelSiteConfig(site)
+      } else {
+        config = this.generateSiteConfig(site)
+      }
       
       // 写入配置文件
       writeFileSync(configPath, config)
@@ -686,6 +696,75 @@ server {
 
     location ~ /\\.(?!well-known).* {
         deny all;
+    }
+}
+`
+    }
+
+    return config
+  }
+
+  /**
+   * 生成反向代理站点配置
+   */
+  private generateProxySiteConfig(site: SiteConfig): string {
+    const logsPath = this.configStore.getLogsPath()
+    const proxyTarget = site.proxyTarget || 'http://127.0.0.1:3000'
+
+    let config = `
+# Reverse Proxy Site
+server {
+    listen 80;
+    server_name ${site.domain};
+
+    access_log "${logsPath.replace(/\\/g, '/')}/${site.name}-access.log";
+    error_log "${logsPath.replace(/\\/g, '/')}/${site.name}-error.log";
+
+    location / {
+        proxy_pass ${proxyTarget};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # WebSocket 支持
+        proxy_read_timeout 86400;
+    }
+}
+`
+
+    if (site.ssl) {
+      const sslPath = join(this.configStore.getSSLPath(), site.domain)
+      config += `
+server {
+    listen 443 ssl http2;
+    server_name ${site.domain};
+
+    ssl_certificate "${sslPath.replace(/\\/g, '/')}/${site.domain}-chain.pem";
+    ssl_certificate_key "${sslPath.replace(/\\/g, '/')}/${site.domain}-key.pem";
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    access_log "${logsPath.replace(/\\/g, '/')}/${site.name}-ssl-access.log";
+    error_log "${logsPath.replace(/\\/g, '/')}/${site.name}-ssl-error.log";
+
+    location / {
+        proxy_pass ${proxyTarget};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # WebSocket 支持
+        proxy_read_timeout 86400;
     }
 }
 `

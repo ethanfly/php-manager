@@ -110,6 +110,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getInfo: (version: string) => ipcRenderer.invoke('node:getInfo', version)
   },
 
+  // Git 管理
+  git: {
+    getVersions: () => ipcRenderer.invoke('git:getVersions'),
+    getAvailableVersions: () => ipcRenderer.invoke('git:getAvailableVersions'),
+    install: (version: string) => ipcRenderer.invoke('git:install', version),
+    uninstall: () => ipcRenderer.invoke('git:uninstall'),
+    checkSystem: () => ipcRenderer.invoke('git:checkSystem'),
+    getConfig: () => ipcRenderer.invoke('git:getConfig'),
+    setConfig: (name: string, email: string) => ipcRenderer.invoke('git:setConfig', name, email)
+  },
+
+  // Python 管理
+  python: {
+    getVersions: () => ipcRenderer.invoke('python:getVersions'),
+    getAvailableVersions: () => ipcRenderer.invoke('python:getAvailableVersions'),
+    install: (version: string) => ipcRenderer.invoke('python:install', version),
+    uninstall: (version: string) => ipcRenderer.invoke('python:uninstall', version),
+    setActive: (version: string) => ipcRenderer.invoke('python:setActive', version),
+    checkSystem: () => ipcRenderer.invoke('python:checkSystem'),
+    getPipInfo: (version: string) => ipcRenderer.invoke('python:getPipInfo', version),
+    installPackage: (version: string, packageName: string) => ipcRenderer.invoke('python:installPackage', version, packageName)
+  },
+
   // 服务管理
   service: {
     getAll: () => ipcRenderer.invoke('service:getAll'),

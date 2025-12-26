@@ -52,6 +52,18 @@ const router = createRouter({
       meta: { title: 'Hosts 管理' }
     },
     {
+      path: '/git',
+      name: 'git',
+      component: () => import('@/views/GitManager.vue'),
+      meta: { title: 'Git 管理' }
+    },
+    {
+      path: '/python',
+      name: 'python',
+      component: () => import('@/views/PythonManager.vue'),
+      meta: { title: 'Python 管理' }
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/views/Settings.vue'),

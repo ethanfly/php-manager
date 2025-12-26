@@ -1,7 +1,7 @@
 import { ConfigStore } from './ConfigStore'
 import { exec, spawn } from 'child_process'
 import { promisify } from 'util'
-import { existsSync, writeFileSync, readFileSync, mkdirSync } from 'fs'
+import { existsSync, writeFileSync, readFileSync, mkdirSync, readdirSync } from 'fs'
 import { join } from 'path'
 
 const execAsync = promisify(exec)
@@ -28,7 +28,7 @@ export class ServiceManager {
    */
   async getAllServices(): Promise<ServiceStatus[]> {
     const services: ServiceStatus[] = []
-    
+
     // 检查 Nginx
     const nginxPath = this.configStore.getNginxPath()
     if (existsSync(join(nginxPath, 'nginx.exe'))) {
@@ -121,7 +121,7 @@ export class ServiceManager {
         }
 
         writeFileSync(batPath, script)
-        
+
         // 更新配置
         const autoStart = this.configStore.get('autoStart')
         if (service === 'nginx') autoStart.nginx = true
@@ -136,7 +136,7 @@ export class ServiceManager {
           const { unlinkSync } = await import('fs')
           unlinkSync(batPath)
         }
-        
+
         // 更新配置
         const autoStart = this.configStore.get('autoStart')
         if (service === 'nginx') autoStart.nginx = false
@@ -330,7 +330,7 @@ export class ServiceManager {
     try {
       // 停止 PHP-CGI
       if (await this.checkProcess('php-cgi.exe')) {
-        await execAsync('taskkill /F /IM php-cgi.exe', { timeout: 5000 }).catch(() => {})
+        await execAsync('taskkill /F /IM php-cgi.exe', { timeout: 5000 }).catch(() => { })
         details.push('PHP-CGI 已停止')
       }
 
@@ -340,14 +340,14 @@ export class ServiceManager {
         try {
           await execAsync(`"${join(nginxPath, 'nginx.exe')}" -s stop`, { cwd: nginxPath, timeout: 5000 })
         } catch (e) {
-          await execAsync('taskkill /F /IM nginx.exe', { timeout: 5000 }).catch(() => {})
+          await execAsync('taskkill /F /IM nginx.exe', { timeout: 5000 }).catch(() => { })
         }
         details.push('Nginx 已停止')
       }
 
       // 停止 MySQL
       if (await this.checkProcess('mysqld.exe')) {
-        await execAsync('taskkill /F /IM mysqld.exe', { timeout: 5000 }).catch(() => {})
+        await execAsync('taskkill /F /IM mysqld.exe', { timeout: 5000 }).catch(() => { })
         details.push('MySQL 已停止')
       }
 
@@ -359,10 +359,10 @@ export class ServiceManager {
           try {
             await execAsync(`"${redisCli}" shutdown`, { timeout: 5000 })
           } catch (e) {
-            await execAsync('taskkill /F /IM redis-server.exe', { timeout: 5000 }).catch(() => {})
+            await execAsync('taskkill /F /IM redis-server.exe', { timeout: 5000 }).catch(() => { })
           }
         } else {
-          await execAsync('taskkill /F /IM redis-server.exe', { timeout: 5000 }).catch(() => {})
+          await execAsync('taskkill /F /IM redis-server.exe', { timeout: 5000 }).catch(() => { })
         }
         details.push('Redis 已停止')
       }
@@ -439,7 +439,7 @@ export class ServiceManager {
           const parts = line.trim().split(/\s+/)
           const pid = parts[parts.length - 1]
           if (pid && /^\d+$/.test(pid)) {
-            await execAsync(`taskkill /F /PID ${pid}`, { windowsHide: true, timeout: 5000 }).catch(() => {})
+            await execAsync(`taskkill /F /PID ${pid}`, { windowsHide: true, timeout: 5000 }).catch(() => { })
           }
         }
       } catch (e) {
@@ -471,7 +471,7 @@ export class ServiceManager {
    */
   async stopAllPhpCgi(): Promise<{ success: boolean; message: string }> {
     try {
-      await execAsync('taskkill /F /IM php-cgi.exe', { timeout: 5000 }).catch(() => {})
+      await execAsync('taskkill /F /IM php-cgi.exe', { timeout: 5000 }).catch(() => { })
       return { success: true, message: '所有 PHP-CGI 已停止' }
     } catch (error: any) {
       return { success: true, message: 'PHP-CGI 未运行' }
@@ -510,16 +510,37 @@ export class ServiceManager {
 
   /**
    * 获取所有 PHP-CGI 状态
+   * 只返回实际安装的 PHP 版本（php-cgi.exe 存在的版本）
    */
   async getPhpCgiStatus(): Promise<{ version: string; port: number; running: boolean }[]> {
-    const phpVersions = this.configStore.get('phpVersions')
     const status: { version: string; port: number; running: boolean }[] = []
+    const phpDir = join(this.configStore.getBasePath(), 'php')
 
-    for (const version of phpVersions) {
-      const port = this.getPhpCgiPort(version)
-      const running = await this.checkPort(port)
-      status.push({ version, port, running })
+    // 检查 PHP 目录是否存在
+    if (!existsSync(phpDir)) {
+      return status
     }
+
+    // 扫描实际安装的 PHP 版本
+    const dirs = readdirSync(phpDir, { withFileTypes: true })
+
+    for (const dir of dirs) {
+      if (dir.isDirectory() && dir.name.startsWith('php-')) {
+        const version = dir.name.replace('php-', '')
+        const phpPath = join(phpDir, dir.name)
+        const phpCgiExe = join(phpPath, 'php-cgi.exe')
+
+        // 只有当 php-cgi.exe 存在时才添加到列表
+        if (existsSync(phpCgiExe)) {
+          const port = this.getPhpCgiPort(version)
+          const running = await this.checkPort(port)
+          status.push({ version, port, running })
+        }
+      }
+    }
+
+    // 按版本号排序（降序）
+    status.sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true }))
 
     return status
   }

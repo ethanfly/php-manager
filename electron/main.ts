@@ -15,6 +15,8 @@ import { RedisManager } from "./services/RedisManager";
 import { NodeManager } from "./services/NodeManager";
 import { ServiceManager } from "./services/ServiceManager";
 import { HostsManager } from "./services/HostsManager";
+import { GitManager } from "./services/GitManager";
+import { PythonManager } from "./services/PythonManager";
 import { ConfigStore } from "./services/ConfigStore";
 
 // 获取图标路径
@@ -116,6 +118,8 @@ const redisManager = new RedisManager(configStore);
 const nodeManager = new NodeManager(configStore);
 const serviceManager = new ServiceManager(configStore);
 const hostsManager = new HostsManager();
+const gitManager = new GitManager(configStore);
+const pythonManager = new PythonManager(configStore);
 
 function createWindow() {
   const appIcon = createWindowIcon();
@@ -519,6 +523,45 @@ ipcMain.handle("hosts:add", (_, domain: string, ip: string) =>
 );
 ipcMain.handle("hosts:remove", (_, domain: string) =>
   hostsManager.removeHost(domain)
+);
+
+// ==================== Git 管理 ====================
+ipcMain.handle("git:getVersions", () => gitManager.getInstalledVersions());
+ipcMain.handle("git:getAvailableVersions", () =>
+  gitManager.getAvailableVersions()
+);
+ipcMain.handle("git:install", (_, version: string) =>
+  gitManager.install(version)
+);
+ipcMain.handle("git:uninstall", () => gitManager.uninstall());
+ipcMain.handle("git:checkSystem", () => gitManager.checkSystemGit());
+ipcMain.handle("git:getConfig", () => gitManager.getGitConfig());
+ipcMain.handle("git:setConfig", (_, name: string, email: string) =>
+  gitManager.setGitConfig(name, email)
+);
+
+// ==================== Python 管理 ====================
+ipcMain.handle("python:getVersions", () => pythonManager.getInstalledVersions());
+ipcMain.handle("python:getAvailableVersions", () =>
+  pythonManager.getAvailableVersions()
+);
+ipcMain.handle("python:install", (_, version: string) =>
+  pythonManager.install(version)
+);
+ipcMain.handle("python:uninstall", (_, version: string) =>
+  pythonManager.uninstall(version)
+);
+ipcMain.handle("python:setActive", (_, version: string) =>
+  pythonManager.setActive(version)
+);
+ipcMain.handle("python:checkSystem", () => pythonManager.checkSystemPython());
+ipcMain.handle("python:getPipInfo", (_, version: string) =>
+  pythonManager.getPipInfo(version)
+);
+ipcMain.handle(
+  "python:installPackage",
+  (_, version: string, packageName: string) =>
+    pythonManager.installPackage(version, packageName)
 );
 
 // ==================== 配置管理 ====================
