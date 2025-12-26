@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  轻松管理 PHP、MySQL、Nginx、Redis 等服务，告别繁琐的手动配置
+  轻松管理 PHP、MySQL、Nginx、Redis、Node.js、Python 等服务，告别繁琐的手动配置
 </p>
 
 <p align="center">
@@ -26,11 +26,35 @@
 <table>
   <tr>
     <td><img src="docs/dashboard.png" alt="仪表盘" /></td>
-    <td><img src="docs/php-manager.png" alt="PHP管理" /></td>
+    <td><img src="docs/php.png" alt="PHP管理" /></td>
   </tr>
   <tr>
-    <td align="center">仪表盘</td>
-    <td align="center">PHP 版本管理</td>
+    <td align="center">🏠 仪表盘</td>
+    <td align="center">🐘 PHP 版本管理</td>
+  </tr>
+  <tr>
+    <td><img src="docs/mysql.png" alt="MySQL管理" /></td>
+    <td><img src="docs/nginx.png" alt="Nginx管理" /></td>
+  </tr>
+  <tr>
+    <td align="center">🐬 MySQL 管理</td>
+    <td align="center">🌐 Nginx 管理</td>
+  </tr>
+  <tr>
+    <td><img src="docs/redis.png" alt="Redis管理" /></td>
+    <td><img src="docs/nodejs.png" alt="Node.js管理" /></td>
+  </tr>
+  <tr>
+    <td align="center">🔴 Redis 管理</td>
+    <td align="center">💚 Node.js 管理</td>
+  </tr>
+  <tr>
+    <td><img src="docs/python.png" alt="Python管理" /></td>
+    <td><img src="docs/setting.png" alt="设置" /></td>
+  </tr>
+  <tr>
+    <td align="center">🐍 Python 管理</td>
+    <td align="center">⚙️ 设置</td>
   </tr>
 </table>
 
@@ -42,39 +66,72 @@
 | ---------- | ---------------------------------------------------------- |
 | 多版本管理 | 支持同时安装 PHP 8.1、8.2、8.3、8.4、8.5 等多个版本        |
 | 一键切换   | 点击即可切换 PHP 版本，自动配置系统环境变量                |
-| 扩展管理   | 可视化管理 PHP 扩展，一键启用/禁用                         |
+| 扩展管理   | 可视化管理 PHP 扩展，支持在线安装（从 PECL）               |
 | 配置编辑   | 在线编辑 php.ini，无需手动查找配置文件                     |
 | 自动配置   | 安装时自动启用常用扩展（curl、gd、mbstring、pdo_mysql 等） |
+| Composer   | 集成 Composer 管理，支持镜像源切换（阿里云、腾讯云等）     |
+| 下载源     | 从 [windows.php.net](https://windows.php.net) 官方下载     |
 
 ### 🐬 MySQL 管理
 
-| 功能       | 说明                             |
-| ---------- | -------------------------------- |
-| 版本支持   | 支持 MySQL 5.7.x 和 8.0.x 系列   |
-| 服务控制   | 启动、停止、重启 MySQL 服务      |
-| 密码管理   | 一键修改 root 密码               |
-| 配置编辑   | 在线编辑 my.ini 配置文件         |
-| 自动初始化 | 安装时自动初始化数据库，开箱即用 |
+| 功能       | 说明                                                                 |
+| ---------- | -------------------------------------------------------------------- |
+| 版本支持   | 支持 MySQL 5.7.x 和 8.0.x 系列                                       |
+| 服务控制   | 启动、停止、重启 MySQL 服务                                          |
+| 密码管理   | 一键修改 root 密码                                                   |
+| 配置编辑   | 在线编辑 my.ini 配置文件                                             |
+| 自动初始化 | 安装时自动初始化数据库，开箱即用                                     |
+| 下载源     | 从[阿里云镜像站](https://mirrors.aliyun.com/mysql/)下载，速度更快    |
 
 ### 🌐 Nginx 管理
 
-| 功能         | 说明                                 |
-| ------------ | ------------------------------------ |
-| 版本管理     | 支持多个 Nginx 版本，可随时切换      |
-| 服务控制     | 启动、停止、重启、热重载配置         |
-| 站点管理     | 可视化添加、删除、启用、禁用虚拟主机 |
-| Laravel 支持 | 自动生成 Laravel 项目的伪静态配置    |
-| SSL 证书     | 支持申请 Let's Encrypt 免费 SSL 证书 |
-| 配置编辑     | 在线编辑 nginx.conf 主配置文件       |
+| 功能         | 说明                                          |
+| ------------ | --------------------------------------------- |
+| 版本管理     | 支持多个 Nginx 版本，可随时切换               |
+| 服务控制     | 启动、停止、重启、热重载配置                  |
+| 站点管理     | 可视化添加、删除、启用、禁用虚拟主机          |
+| Laravel 支持 | 自动生成 Laravel 项目的伪静态配置             |
+| SSL 证书     | 支持申请 Let's Encrypt 免费 SSL 证书          |
+| 配置编辑     | 在线编辑 nginx.conf 主配置文件                |
+| 下载源       | 从 [nginx.org](https://nginx.org) 官方下载    |
 
 ### 🔴 Redis 管理
 
-| 功能         | 说明                             |
-| ------------ | -------------------------------- |
-| Windows 版本 | 使用 Windows 原生编译版 Redis    |
-| 服务控制     | 启动、停止、重启 Redis 服务      |
-| 状态监控     | 实时查看运行状态、内存使用情况   |
-| 配置编辑     | 在线编辑 redis.windows.conf 配置 |
+| 功能         | 说明                                                                       |
+| ------------ | -------------------------------------------------------------------------- |
+| Windows 版本 | 使用 Windows 原生编译版 Redis                                              |
+| 服务控制     | 启动、停止、重启 Redis 服务                                                |
+| 状态监控     | 实时查看运行状态、内存使用情况                                             |
+| 配置编辑     | 在线编辑 redis.windows.conf 配置                                           |
+| 下载源       | 从 [GitHub (redis-windows)](https://github.com/redis-windows/redis-windows) 下载 |
+
+### 💚 Node.js 管理
+
+| 功能       | 说明                                                     |
+| ---------- | -------------------------------------------------------- |
+| 多版本管理 | 支持同时安装多个 Node.js 版本                            |
+| LTS 支持   | 显示 LTS 版本和 Current 版本标识                         |
+| npm 集成   | 自动显示对应的 npm 版本                                  |
+| 一键切换   | 快速切换默认 Node.js 版本，自动配置环境变量              |
+| 下载源     | 从 [nodejs.org](https://nodejs.org) 官方下载             |
+
+### 🐍 Python 管理
+
+| 功能       | 说明                                                     |
+| ---------- | -------------------------------------------------------- |
+| 嵌入式版本 | 使用免安装的嵌入式版本，不影响系统环境                   |
+| pip 集成   | 自动配置 pip，支持安装 Python 包                         |
+| 多版本管理 | 支持同时安装多个 Python 版本                             |
+| 一键切换   | 快速切换默认 Python 版本                                 |
+| 下载源     | 从 [python.org](https://www.python.org) 官方下载         |
+
+### 🔧 Git 管理
+
+| 功能       | 说明                           |
+| ---------- | ------------------------------ |
+| 版本管理   | 一键安装/卸载 Git for Windows  |
+| 配置管理   | 可视化配置用户名、邮箱等信息   |
+| 环境变量   | 自动配置系统 PATH              |
 
 ### 🌍 站点管理
 
@@ -89,6 +146,8 @@
 - 📋 **Hosts 管理** - 可视化管理系统 hosts 文件
 - 🌙 **深色/浅色主题** - 支持主题切换
 - 📊 **服务状态监控** - 实时显示各服务运行状态
+- ⏳ **加载状态提示** - 版本列表加载时显示 Loading 状态
+- 📥 **下载源说明** - 清晰显示各软件的下载来源
 
 ## 🛠️ 技术栈
 
@@ -146,6 +205,9 @@ phper/
 │       ├── MysqlManager.ts     # MySQL 服务管理器
 │       ├── NginxManager.ts     # Nginx 服务管理器
 │       ├── RedisManager.ts     # Redis 服务管理器
+│       ├── NodeManager.ts      # Node.js 版本管理器
+│       ├── PythonManager.ts    # Python 版本管理器
+│       ├── GitManager.ts       # Git 管理器
 │       ├── ServiceManager.ts   # 开机自启服务管理器
 │       └── HostsManager.ts     # Hosts 文件管理器
 │
@@ -163,6 +225,9 @@ phper/
 │       ├── MysqlManager.vue    # MySQL 管理
 │       ├── NginxManager.vue    # Nginx 管理
 │       ├── RedisManager.vue    # Redis 管理
+│       ├── NodeManager.vue     # Node.js 管理
+│       ├── PythonManager.vue   # Python 管理
+│       ├── GitManager.vue      # Git 管理
 │       ├── SitesManager.vue    # 站点管理
 │       ├── HostsManager.vue    # Hosts 管理
 │       └── Settings.vue        # 设置
@@ -246,10 +311,15 @@ A: 进入对应服务管理页面，先停止服务，然后点击"卸载"按钮
 
 ## 🔗 相关资源
 
-- [PHP for Windows](https://windows.php.net/download/) - PHP Windows 官方下载
-- [MySQL Downloads](https://dev.mysql.com/downloads/) - MySQL 官方下载
-- [Nginx](https://nginx.org/) - Nginx 官方网站
-- [Redis for Windows](https://github.com/redis-windows/redis-windows) - Windows 版 Redis
+| 软件    | 下载源                                                                 |
+| ------- | ---------------------------------------------------------------------- |
+| PHP     | [windows.php.net](https://windows.php.net/download/) - 官方 Windows 版 |
+| MySQL   | [阿里云镜像](https://mirrors.aliyun.com/mysql/) - 国内高速下载         |
+| Nginx   | [nginx.org](https://nginx.org/en/download.html) - 官方 Windows 版      |
+| Redis   | [GitHub redis-windows](https://github.com/redis-windows/redis-windows) |
+| Node.js | [nodejs.org](https://nodejs.org/en/download/) - 官方下载               |
+| Python  | [python.org](https://www.python.org/downloads/windows/) - 嵌入式版本   |
+| Git     | [git-scm.com](https://git-scm.com/download/win) - 官方 Windows 版      |
 
 ## 📄 开源协议
 

@@ -126,12 +126,18 @@
       width="600px"
     >
       <el-alert type="info" :closable="false" class="mb-4">
-        <template #title>安装说明</template>
-        将下载 Python 嵌入式版本（免安装），自动配置 pip。
+        <template #title>
+          <el-icon><InfoFilled /></el-icon>
+          下载源说明
+        </template>
+        Python 将从官方网站 <a href="https://www.python.org/downloads/windows/" target="_blank">python.org</a> 下载嵌入式版本（免安装），并自动配置 pip。
       </el-alert>
-      <div v-if="availableVersions.length === 0" class="loading-state">
+      <div v-if="loadingAvailableVersions" class="loading-state">
         <el-icon class="is-loading"><Loading /></el-icon>
-        <span>加载可用版本...</span>
+        <span>正在获取可用版本列表...</span>
+      </div>
+      <div v-else-if="availableVersions.length === 0" class="empty-hint">
+        <span>暂无可用版本</span>
       </div>
       <div v-else class="available-versions">
         <div 
@@ -174,6 +180,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { InfoFilled } from '@element-plus/icons-vue'
 
 interface PythonVersion {
   version: string
@@ -231,7 +238,10 @@ const loadVersions = async () => {
   }
 }
 
+const loadingAvailableVersions = ref(false)
+
 const loadAvailableVersions = async () => {
+  loadingAvailableVersions.value = true
   try {
     availableVersions.value = await window.electronAPI?.python?.getAvailableVersions() || []
     if (availableVersions.value.length > 0) {
@@ -239,6 +249,8 @@ const loadAvailableVersions = async () => {
     }
   } catch (error: any) {
     ElMessage.error('加载可用版本失败: ' + error.message)
+  } finally {
+    loadingAvailableVersions.value = false
   }
 }
 
@@ -522,6 +534,21 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--text-muted);
   margin-top: 8px;
+}
+
+.empty-hint {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.mb-4 a {
+  color: var(--accent-color);
+  text-decoration: none;
+  
+  &:hover {
+    text-decoration: underline;
+  }
 }
 </style>
 

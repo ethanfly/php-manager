@@ -113,11 +113,19 @@
     >
       <el-alert type="info" :closable="false" class="mb-4">
         <template #title>
-          安装说明
+          <el-icon><InfoFilled /></el-icon>
+          下载源说明
         </template>
-        MySQL 将从阿里云镜像站下载，安装后自动设置 root 密码为 123456。
+        MySQL 将从 <a href="https://mirrors.aliyun.com/mysql/" target="_blank">阿里云镜像站</a> 下载，速度较快。安装后 root 密码默认为 123456。
       </el-alert>
-      <div class="available-versions">
+      <div v-if="loadingAvailableVersions" class="loading-state">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <span>正在获取可用版本列表...</span>
+      </div>
+      <div v-else-if="availableVersions.length === 0" class="empty-hint">
+        <span>暂无可用版本</span>
+      </div>
+      <div v-else class="available-versions">
         <div 
           v-for="version in availableVersions" 
           :key="version.version"
@@ -130,7 +138,7 @@
           </div>
           <el-icon v-if="selectedVersion === version.version" class="check-icon"><Check /></el-icon>
         </div>
-      </div>
+        </div>
       <!-- 下载进度条 -->
       <div v-if="installing && downloadProgress.total > 0" class="download-progress">
         <div class="progress-info">
@@ -220,6 +228,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { InfoFilled } from '@element-plus/icons-vue'
 import { useServiceStore } from '@/stores/serviceStore'
 
 const store = useServiceStore()
@@ -272,11 +281,16 @@ const loadVersions = async () => {
   }
 }
 
+const loadingAvailableVersions = ref(false)
+
 const loadAvailableVersions = async () => {
+  loadingAvailableVersions.value = true
   try {
     availableVersions.value = await window.electronAPI?.mysql.getAvailableVersions() || []
   } catch (error: any) {
     ElMessage.error('加载可用版本失败: ' + error.message)
+  } finally {
+    loadingAvailableVersions.value = false
   }
 }
 
@@ -555,6 +569,21 @@ onUnmounted(() => {
 .code-editor {
   width: 100%;
   height: 500px;
+}
+
+.empty-hint {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.mb-4 a {
+  color: var(--accent-color);
+  text-decoration: none;
+  
+  &:hover {
+    text-decoration: underline;
+  }
 }
 </style>
 

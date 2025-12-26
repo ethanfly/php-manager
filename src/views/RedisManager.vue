@@ -115,11 +115,19 @@
     >
       <el-alert type="info" :closable="false" class="mb-4">
         <template #title>
-          Windows 版 Redis
+          <el-icon><InfoFilled /></el-icon>
+          下载源说明
         </template>
-        将从 GitHub 下载 Windows 版 Redis，下载速度可能较慢。
+        Redis 将从 <a href="https://github.com/redis-windows/redis-windows" target="_blank">GitHub (redis-windows)</a> 下载 Windows 编译版，国内网络可能较慢。
       </el-alert>
-      <div class="available-versions">
+      <div v-if="loadingAvailableVersions" class="loading-state">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <span>正在获取可用版本列表...</span>
+      </div>
+      <div v-else-if="availableVersions.length === 0" class="empty-hint">
+        <span>暂无可用版本</span>
+      </div>
+      <div v-else class="available-versions">
         <div 
           v-for="version in availableVersions" 
           :key="version.version"
@@ -131,16 +139,16 @@
             <span class="version-number">Redis {{ version.version }}</span>
           </div>
           <el-icon v-if="selectedVersion === version.version" class="check-icon"><Check /></el-icon>
+          </div>
         </div>
-      </div>
-      <!-- 下载进度条 -->
-      <div v-if="installing && downloadProgress.total > 0" class="download-progress">
-        <div class="progress-info">
-          <span>下载中...</span>
-          <span>{{ formatSize(downloadProgress.downloaded) }} / {{ formatSize(downloadProgress.total) }}</span>
+        <!-- 下载进度条 -->
+        <div v-if="installing && downloadProgress.total > 0" class="download-progress">
+          <div class="progress-info">
+            <span>下载中...</span>
+            <span>{{ formatSize(downloadProgress.downloaded) }} / {{ formatSize(downloadProgress.total) }}</span>
+          </div>
+          <el-progress :percentage="downloadProgress.progress" :stroke-width="10" />
         </div>
-        <el-progress :percentage="downloadProgress.progress" :stroke-width="10" />
-      </div>
       <template #footer>
         <el-button @click="showInstallDialog = false" :disabled="installing">取消</el-button>
         <el-button 
@@ -178,6 +186,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { InfoFilled } from '@element-plus/icons-vue'
 import { useServiceStore } from '@/stores/serviceStore'
 
 const store = useServiceStore()
@@ -227,11 +236,16 @@ const loadData = async () => {
   }
 }
 
+const loadingAvailableVersions = ref(false)
+
 const loadAvailableVersions = async () => {
+  loadingAvailableVersions.value = true
   try {
     availableVersions.value = await window.electronAPI?.redis.getAvailableVersions() || []
   } catch (error: any) {
     console.error('加载可用版本失败:', error)
+  } finally {
+    loadingAvailableVersions.value = false
   }
 }
 
@@ -529,6 +543,21 @@ onUnmounted(() => {
 .code-editor {
   width: 100%;
   height: 500px;
+}
+
+.empty-hint {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.mb-4 a {
+  color: var(--accent-color);
+  text-decoration: none;
+  
+  &:hover {
+    text-decoration: underline;
+  }
 }
 </style>
 

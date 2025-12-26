@@ -9,7 +9,9 @@ interface ConfigSchema {
   mysqlVersions: string[];
   nginxVersions: string[];
   redisVersions: string[];
+  nodeVersions: string[];
   activePhpVersion: string;
+  activeNodeVersion: string;
   autoStart: {
     nginx: boolean;
     mysql: boolean;
@@ -63,7 +65,9 @@ export class ConfigStore {
         mysqlVersions: [],
         nginxVersions: [],
         redisVersions: [],
+        nodeVersions: [],
         activePhpVersion: "",
+        activeNodeVersion: "",
         autoStart: {
           nginx: false,
           mysql: false,

@@ -28,6 +28,8 @@ interface NginxStatus {
 
 export class NginxManager {
   private configStore: ConfigStore
+  private versionCache: { versions: AvailableNginxVersion[]; timestamp: number } | null = null
+  private readonly CACHE_TTL = 5 * 60 * 1000 // 5分钟缓存
 
   constructor(configStore: ConfigStore) {
     this.configStore = configStore
@@ -88,9 +90,109 @@ export class NginxManager {
 
   /**
    * 获取可用的 Nginx 版本列表
+   * 动态从 nginx.org 获取
    */
   async getAvailableVersions(): Promise<AvailableNginxVersion[]> {
-    const versions: AvailableNginxVersion[] = [
+    // 检查缓存
+    if (this.versionCache && (Date.now() - this.versionCache.timestamp) < this.CACHE_TTL) {
+      console.log('使用缓存的 Nginx 版本列表')
+      return this.versionCache.versions
+    }
+
+    let versions: AvailableNginxVersion[] = []
+
+    try {
+      console.log('从 nginx.org 获取版本列表...')
+      versions = await this.fetchNginxVersions()
+      console.log(`从 nginx.org 获取到 ${versions.length} 个 Nginx 版本`)
+    } catch (error: any) {
+      console.error('从 nginx.org 获取 Nginx 版本失败:', error.message)
+    }
+
+    // 如果获取失败或为空，使用备用列表
+    if (versions.length === 0) {
+      console.log('使用备用 Nginx 版本列表')
+      versions = this.getFallbackVersions()
+    }
+
+    // 更新缓存
+    this.versionCache = { versions, timestamp: Date.now() }
+
+    return versions
+  }
+
+  /**
+   * 从 nginx.org 下载页面获取版本列表
+   */
+  private async fetchNginxVersions(): Promise<AvailableNginxVersion[]> {
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'nginx.org',
+        path: '/download/',
+        method: 'GET',
+        headers: {
+          'User-Agent': 'PHPer-Dev-Manager'
+        },
+        timeout: 15000
+      }
+
+      const request = http.request(options, (response) => {
+        let data = ''
+        response.on('data', chunk => data += chunk)
+        response.on('end', () => {
+          try {
+            const versions: AvailableNginxVersion[] = []
+            // 解析 HTML 页面中的 Windows 版本链接
+            // 格式: nginx-1.27.3.zip
+            const regex = /href="\/download\/nginx-(\d+\.\d+\.\d+)\.zip"/g
+            let match
+            const seen = new Set<string>()
+
+            while ((match = regex.exec(data)) !== null) {
+              const version = match[1]
+              if (!seen.has(version)) {
+                seen.add(version)
+                versions.push({
+                  version,
+                  downloadUrl: `https://nginx.org/download/nginx-${version}.zip`
+                })
+              }
+            }
+
+            // 按版本号排序（降序）
+            versions.sort((a, b) => {
+              const aParts = a.version.split('.').map(Number)
+              const bParts = b.version.split('.').map(Number)
+              for (let i = 0; i < 3; i++) {
+                if (aParts[i] !== bParts[i]) {
+                  return bParts[i] - aParts[i]
+                }
+              }
+              return 0
+            })
+
+            // 只返回前 10 个版本
+            resolve(versions.slice(0, 10))
+          } catch (e) {
+            reject(e)
+          }
+        })
+      })
+
+      request.on('error', reject)
+      request.on('timeout', () => {
+        request.destroy()
+        reject(new Error('请求超时'))
+      })
+      request.end()
+    })
+  }
+
+  /**
+   * 备用版本列表
+   */
+  private getFallbackVersions(): AvailableNginxVersion[] {
+    return [
       {
         version: '1.27.3',
         downloadUrl: 'https://nginx.org/download/nginx-1.27.3.zip'
@@ -108,8 +210,6 @@ export class NginxManager {
         downloadUrl: 'https://nginx.org/download/nginx-1.24.0.zip'
       }
     ]
-
-    return versions
   }
 
   /**

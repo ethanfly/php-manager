@@ -172,14 +172,19 @@
       title="安装 PHP 版本"
       width="600px"
     >
-      <el-alert type="warning" :closable="false" class="mb-4">
-        <template #title>安装说明</template>
-        PHP 从官方网站 (windows.php.net) 下载，国内网络可能较慢，请耐心等待。
-        下载进度可在控制台查看 (F12)。
+      <el-alert type="info" :closable="false" class="mb-4">
+        <template #title>
+          <el-icon><InfoFilled /></el-icon>
+          下载源说明
+        </template>
+        PHP 将从官方网站 <a href="https://windows.php.net" target="_blank">windows.php.net</a> 下载，国内网络可能较慢，请耐心等待。
       </el-alert>
-      <div v-if="availableVersions.length === 0" class="loading-state">
+      <div v-if="loadingAvailableVersions" class="loading-state">
         <el-icon class="is-loading"><Loading /></el-icon>
-        <span>加载可用版本...</span>
+        <span>正在获取可用版本列表...</span>
+      </div>
+      <div v-else-if="availableVersions.length === 0" class="empty-hint">
+        <span>暂无可用版本</span>
       </div>
       <div v-else class="available-versions">
         <div 
@@ -367,7 +372,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { FolderOpened } from '@element-plus/icons-vue'
+import { FolderOpened, InfoFilled } from '@element-plus/icons-vue'
 import { useServiceStore } from '@/stores/serviceStore'
 
 const store = useServiceStore()
@@ -565,11 +570,16 @@ const getMirrorDisplayName = (mirror?: string) => {
   return mirrors[mirror] || mirror
 }
 
+const loadingAvailableVersions = ref(false)
+
 const loadAvailableVersions = async () => {
+  loadingAvailableVersions.value = true
   try {
     availableVersions.value = await window.electronAPI?.php.getAvailableVersions() || []
   } catch (error: any) {
     ElMessage.error('加载可用版本失败: ' + error.message)
+  } finally {
+    loadingAvailableVersions.value = false
   }
 }
 
@@ -1086,6 +1096,21 @@ onUnmounted(() => {
   .mirror-value {
     color: var(--accent-color);
     font-weight: 500;
+  }
+}
+
+.empty-hint {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.mb-4 a {
+  color: var(--accent-color);
+  text-decoration: none;
+  
+  &:hover {
+    text-decoration: underline;
   }
 }
 </style>

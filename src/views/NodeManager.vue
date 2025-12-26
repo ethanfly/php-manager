@@ -83,7 +83,21 @@
       title="安装 Node.js"
       width="700px"
     >
-      <div class="available-versions">
+      <el-alert type="info" :closable="false" class="mb-4">
+        <template #title>
+          <el-icon><InfoFilled /></el-icon>
+          下载源说明
+        </template>
+        Node.js 将从官方网站 <a href="https://nodejs.org/en/download/" target="_blank">nodejs.org</a> 下载 Windows 64位版本。
+      </el-alert>
+      <div v-if="loadingAvailableVersions" class="loading-state">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <span>正在获取可用版本列表...</span>
+      </div>
+      <div v-else-if="availableVersions.length === 0" class="empty-hint">
+        <span>暂无可用版本</span>
+      </div>
+      <div v-else class="available-versions">
         <el-table :data="availableVersions" style="width: 100%" max-height="400">
           <el-table-column prop="version" label="版本" width="120" />
           <el-table-column prop="date" label="发布日期" width="120" />
@@ -113,7 +127,7 @@
             </template>
           </el-table-column>
         </el-table>
-      </div>
+        </div>
       <template #footer>
         <el-button @click="showInstallDialog = false">关闭</el-button>
       </template>
@@ -124,7 +138,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Promotion, Box } from '@element-plus/icons-vue'
+import { Plus, Promotion, Box, InfoFilled, Loading } from '@element-plus/icons-vue'
 
 interface NodeVersion {
   version: string
@@ -162,11 +176,16 @@ const loadVersions = async () => {
   }
 }
 
+const loadingAvailableVersions = ref(false)
+
 const loadAvailableVersions = async () => {
+  loadingAvailableVersions.value = true
   try {
     availableVersions.value = await window.electronAPI?.node.getAvailableVersions() || []
   } catch (error: any) {
     console.error('加载可用版本失败:', error)
+  } finally {
+    loadingAvailableVersions.value = false
   }
 }
 
@@ -392,6 +411,43 @@ onUnmounted(() => {
     font-size: 14px;
     color: var(--text-secondary);
   }
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: var(--text-secondary);
+  
+  .is-loading {
+    font-size: 24px;
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.mb-4 {
+  margin-bottom: 16px;
+  
+  a {
+    color: var(--accent-color);
+    text-decoration: none;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.empty-hint {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
 }
 </style>
 

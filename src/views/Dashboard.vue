@@ -376,8 +376,6 @@ const startService = async (service: Service) => {
     } else {
       ElMessage.error(result?.message || '启动失败')
     }
-    // 同步刷新全局状态
-    await store.refreshServiceStatus()
   } catch (error: any) {
     ElMessage.error(error.message)
   } finally {
@@ -396,8 +394,6 @@ const startPhpCgi = async (service: Service) => {
     } else {
       ElMessage.error(result?.message || '启动失败')
     }
-    // 同步刷新全局状态
-    await store.refreshServiceStatus()
   } catch (error: any) {
     ElMessage.error(error.message)
   } finally {
@@ -426,8 +422,6 @@ const stopService = async (service: Service) => {
     } else {
       ElMessage.error(result?.message || '停止失败')
     }
-    // 同步刷新全局状态
-    await store.refreshServiceStatus()
   } catch (error: any) {
     ElMessage.error(error.message)
   } finally {
@@ -446,8 +440,6 @@ const stopPhpCgi = async (service: Service) => {
     } else {
       ElMessage.error(result?.message || '停止失败')
     }
-    // 同步刷新全局状态
-    await store.refreshServiceStatus()
   } catch (error: any) {
     ElMessage.error(error.message)
   } finally {
@@ -475,8 +467,6 @@ const restartService = async (service: Service) => {
     } else {
       ElMessage.error(result?.message || '重启失败')
     }
-    // 同步刷新全局状态
-    await store.refreshServiceStatus()
   } catch (error: any) {
     ElMessage.error(error.message)
   } finally {
@@ -498,8 +488,6 @@ const restartPhpCgi = async (service: Service) => {
     } else {
       ElMessage.error(result?.message || '重启失败')
     }
-    // 同步刷新全局状态
-    await store.refreshServiceStatus()
   } catch (error: any) {
     ElMessage.error(error.message)
   } finally {
@@ -513,8 +501,8 @@ const startAllPhpCgi = async () => {
     const result = await window.electronAPI?.service.startAllPhpCgi()
     if (result?.success) {
       ElMessage.success('全部 PHP-CGI 已启动')
-      // 刷新全局状态
-      await store.refreshServiceStatus()
+      // 更新所有 PHP-CGI 状态为运行中
+      store.serviceStatus.phpCgi.forEach(p => p.running = true)
     } else {
       ElMessage.error(result?.message || '启动失败')
     }
@@ -529,8 +517,8 @@ const stopAllPhpCgi = async () => {
     const result = await window.electronAPI?.service.stopAllPhpCgi()
     if (result?.success) {
       ElMessage.success('全部 PHP-CGI 已停止')
-      // 刷新全局状态
-      await store.refreshServiceStatus()
+      // 更新所有 PHP-CGI 状态为已停止
+      store.serviceStatus.phpCgi.forEach(p => p.running = false)
     } else {
       ElMessage.error(result?.message || '停止失败')
     }
@@ -581,11 +569,9 @@ const setActiveNode = async (version: string) => {
   }
 }
 
-onMounted(() => {
-  // 如果 store 未初始化，则刷新
-  if (!store.lastUpdated) {
-    store.refreshAll()
-  }
+onMounted(async () => {
+  // 总是刷新数据以确保数据最新
+  await store.refreshAll()
 })
 </script>
 

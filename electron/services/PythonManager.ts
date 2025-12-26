@@ -24,6 +24,8 @@ interface AvailablePythonVersion {
 
 export class PythonManager {
   private configStore: ConfigStore
+  private versionCache: { versions: AvailablePythonVersion[]; timestamp: number } | null = null
+  private readonly CACHE_TTL = 5 * 60 * 1000 // 5分钟缓存
 
   constructor(configStore: ConfigStore) {
     this.configStore = configStore
@@ -56,7 +58,7 @@ export class PythonManager {
     }
 
     const dirs = readdirSync(pythonBasePath, { withFileTypes: true })
-    
+
     for (const dir of dirs) {
       if (dir.isDirectory() && dir.name.startsWith('python-')) {
         const version = dir.name.replace('python-', '')
@@ -78,12 +80,131 @@ export class PythonManager {
 
   /**
    * 获取可用的 Python 版本列表
-   * 使用 Python 嵌入式版本（免安装）
+   * 动态从 python.org 获取 Windows 嵌入式版本
    */
   async getAvailableVersions(): Promise<AvailablePythonVersion[]> {
-    // Python 嵌入式版本下载地址
-    // https://www.python.org/downloads/windows/
-    const versions: AvailablePythonVersion[] = [
+    // 检查缓存
+    if (this.versionCache && (Date.now() - this.versionCache.timestamp) < this.CACHE_TTL) {
+      console.log('使用缓存的 Python 版本列表')
+      // 过滤掉已安装的版本
+      const installed = await this.getInstalledVersions()
+      const installedVersions = installed.map(v => v.version)
+      return this.versionCache.versions.filter(v => !installedVersions.includes(v.version))
+    }
+
+    let versions: AvailablePythonVersion[] = []
+
+    try {
+      console.log('从 python.org 获取版本列表...')
+      versions = await this.fetchPythonVersions()
+      console.log(`从 python.org 获取到 ${versions.length} 个 Python 版本`)
+    } catch (error: any) {
+      console.error('从 python.org 获取 Python 版本失败:', error.message)
+    }
+
+    // 如果获取失败或为空，使用备用列表
+    if (versions.length === 0) {
+      console.log('使用备用 Python 版本列表')
+      versions = this.getFallbackVersions()
+    }
+
+    // 更新缓存
+    this.versionCache = { versions, timestamp: Date.now() }
+
+    // 过滤掉已安装的版本
+    const installed = await this.getInstalledVersions()
+    const installedVersions = installed.map(v => v.version)
+
+    return versions.filter(v => !installedVersions.includes(v.version))
+  }
+
+  /**
+   * 从 python.org API 获取版本列表
+   */
+  private async fetchPythonVersions(): Promise<AvailablePythonVersion[]> {
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'www.python.org',
+        path: '/api/v2/downloads/release/?is_published=true&pre_release=false&page_size=50',
+        method: 'GET',
+        headers: {
+          'User-Agent': 'PHPer-Dev-Manager',
+          'Accept': 'application/json'
+        },
+        timeout: 15000
+      }
+
+      const request = https.request(options, (response) => {
+        let data = ''
+        response.on('data', chunk => data += chunk)
+        response.on('end', () => {
+          try {
+            const json = JSON.parse(data)
+            const versions: AvailablePythonVersion[] = []
+            const seen = new Set<string>()
+
+            if (json.results && Array.isArray(json.results)) {
+              for (const release of json.results) {
+                // 解析版本号，如 "Python 3.13.1"
+                const match = release.name?.match(/Python (\d+\.\d+\.\d+)/)
+                if (match) {
+                  const version = match[1]
+                  // 只获取 Python 3.8+ 版本
+                  const majorMinor = version.split('.').slice(0, 2).map(Number)
+                  if (majorMinor[0] >= 3 && majorMinor[1] >= 8 && !seen.has(version)) {
+                    seen.add(version)
+                    versions.push({
+                      version,
+                      downloadUrl: `https://www.python.org/ftp/python/${version}/python-${version}-embed-amd64.zip`,
+                      type: 'embed'
+                    })
+                  }
+                }
+              }
+            }
+
+            // 按版本号排序（降序）
+            versions.sort((a, b) => {
+              const aParts = a.version.split('.').map(Number)
+              const bParts = b.version.split('.').map(Number)
+              for (let i = 0; i < 3; i++) {
+                if (aParts[i] !== bParts[i]) {
+                  return bParts[i] - aParts[i]
+                }
+              }
+              return 0
+            })
+
+            // 每个主版本只保留最新的一个
+            const latestByMajorMinor = new Map<string, AvailablePythonVersion>()
+            for (const v of versions) {
+              const majorMinor = v.version.split('.').slice(0, 2).join('.')
+              if (!latestByMajorMinor.has(majorMinor)) {
+                latestByMajorMinor.set(majorMinor, v)
+              }
+            }
+
+            resolve(Array.from(latestByMajorMinor.values()))
+          } catch (e) {
+            reject(e)
+          }
+        })
+      })
+
+      request.on('error', reject)
+      request.on('timeout', () => {
+        request.destroy()
+        reject(new Error('请求超时'))
+      })
+      request.end()
+    })
+  }
+
+  /**
+   * 备用版本列表
+   */
+  private getFallbackVersions(): AvailablePythonVersion[] {
+    return [
       {
         version: '3.13.1',
         downloadUrl: 'https://www.python.org/ftp/python/3.13.1/python-3.13.1-embed-amd64.zip',
@@ -110,12 +231,6 @@ export class PythonManager {
         type: 'embed'
       }
     ]
-
-    // 过滤掉已安装的版本
-    const installed = await this.getInstalledVersions()
-    const installedVersions = installed.map(v => v.version)
-
-    return versions.filter(v => !installedVersions.includes(v.version))
   }
 
   /**
@@ -324,7 +439,7 @@ export class PythonManager {
       // 修改 python*._pth 文件以启用 pip
       const majorMinor = version.split('.').slice(0, 2).join('')
       const pthFile = join(pythonPath, `python${majorMinor}._pth`)
-      
+
       if (existsSync(pthFile)) {
         const { readFileSync } = require('fs')
         let content = readFileSync(pthFile, 'utf-8')
