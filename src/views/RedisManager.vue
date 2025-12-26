@@ -178,6 +178,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useServiceStore } from '@/stores/serviceStore'
+
+const store = useServiceStore()
 
 interface RedisStatus {
   running: boolean
@@ -216,6 +219,8 @@ const loadData = async () => {
       currentVersion.value = versions[0].version
     }
     status.value = await window.electronAPI?.redis.getStatus() || { running: false }
+    // 同步更新全局状态
+    store.refreshServiceStatus()
   } catch (error: any) {
     console.error('加载数据失败:', error)
   } finally {

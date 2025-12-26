@@ -39,6 +39,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveConfig: (version: string, config: string) => ipcRenderer.invoke('php:saveConfig', version, config)
   },
 
+  // Composer 管理
+  composer: {
+    getStatus: () => ipcRenderer.invoke('composer:getStatus'),
+    install: () => ipcRenderer.invoke('composer:install'),
+    uninstall: () => ipcRenderer.invoke('composer:uninstall'),
+    setMirror: (mirror: string) => ipcRenderer.invoke('composer:setMirror', mirror),
+    createLaravelProject: (projectName: string, targetDir: string) => ipcRenderer.invoke('composer:createLaravelProject', projectName, targetDir)
+  },
+
   // MySQL 管理
   mysql: {
     getVersions: () => ipcRenderer.invoke('mysql:getVersions'),
@@ -107,7 +116,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setAutoStart: (service: string, enabled: boolean) => ipcRenderer.invoke('service:setAutoStart', service, enabled),
     getAutoStart: (service: string) => ipcRenderer.invoke('service:getAutoStart', service),
     startAll: () => ipcRenderer.invoke('service:startAll'),
-    stopAll: () => ipcRenderer.invoke('service:stopAll')
+    stopAll: () => ipcRenderer.invoke('service:stopAll'),
+    // PHP-CGI 多版本管理
+    getPhpCgiStatus: () => ipcRenderer.invoke('service:getPhpCgiStatus'),
+    startPhpCgi: () => ipcRenderer.invoke('service:startPhpCgi'),
+    stopPhpCgi: () => ipcRenderer.invoke('service:stopPhpCgi'),
+    startAllPhpCgi: () => ipcRenderer.invoke('service:startAllPhpCgi'),
+    stopAllPhpCgi: () => ipcRenderer.invoke('service:stopAllPhpCgi'),
+    startPhpCgiVersion: (version: string) => ipcRenderer.invoke('service:startPhpCgiVersion', version),
+    stopPhpCgiVersion: (version: string) => ipcRenderer.invoke('service:stopPhpCgiVersion', version),
+    getPhpCgiPort: (version: string) => ipcRenderer.invoke('service:getPhpCgiPort', version)
   },
 
   // Hosts 管理

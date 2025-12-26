@@ -62,6 +62,86 @@
       </div>
     </div>
 
+    <!-- PHP-CGI 服务状态卡片 -->
+    <div v-if="phpCgiServices.length > 0" class="php-cgi-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <el-icon><Files /></el-icon>
+          PHP-CGI 进程
+        </h2>
+        <div class="section-actions">
+          <el-button type="success" size="small" @click="startAllPhpCgi">
+            <el-icon><VideoPlay /></el-icon>
+            全部启动
+          </el-button>
+          <el-button type="danger" size="small" @click="stopAllPhpCgi">
+            <el-icon><VideoPause /></el-icon>
+            全部停止
+          </el-button>
+        </div>
+      </div>
+      <div class="status-grid">
+        <div 
+          v-for="service in phpCgiServices" 
+          :key="service.name" 
+          class="status-card php-cgi-card"
+          :class="{ running: service.running }"
+        >
+          <div class="status-header">
+            <div class="service-icon" :style="{ background: service.gradient }">
+              <el-icon><component :is="service.icon" /></el-icon>
+            </div>
+            <div class="service-info">
+              <h3 class="service-name">{{ service.displayName }}</h3>
+              <div class="port-info">端口: {{ service.port }}</div>
+              <span class="status-tag" :class="service.running ? 'running' : 'stopped'">
+                <span class="status-dot"></span>
+                {{ service.running ? '运行中' : '已停止' }}
+              </span>
+            </div>
+          </div>
+          <div class="status-actions">
+            <el-button 
+              v-if="!service.running" 
+              type="success" 
+              size="small" 
+              @click="startPhpCgi(service)"
+              :loading="service.loading"
+            >
+              <el-icon><VideoPlay /></el-icon>
+              启动
+            </el-button>
+            <el-button 
+              v-else 
+              type="danger" 
+              size="small" 
+              @click="stopPhpCgi(service)"
+              :loading="service.loading"
+            >
+              <el-icon><VideoPause /></el-icon>
+              停止
+            </el-button>
+            <el-button 
+              size="small" 
+              @click="restartPhpCgi(service)"
+              :loading="service.loading"
+              :disabled="!service.running"
+            >
+              <el-icon><RefreshRight /></el-icon>
+              重启
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div v-else class="php-cgi-empty">
+      <el-alert type="info" :closable="false">
+        <template #title>
+          暂未安装 PHP，请先到 <router-link to="/php">PHP 管理</router-link> 安装 PHP 版本
+        </template>
+      </el-alert>
+    </div>
+
     <!-- 快捷信息 -->
     <div class="info-grid">
       <!-- PHP 版本 -->
@@ -213,9 +293,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Link, Promotion } from '@element-plus/icons-vue'
+import { useServiceStore } from '@/stores/serviceStore'
+
+const store = useServiceStore()
 
 interface Service {
   name: string
@@ -224,52 +307,54 @@ interface Service {
   gradient: string
   running: boolean
   loading: boolean
+  version?: string  // 用于 PHP-CGI 显示版本
+  port?: number     // 用于 PHP-CGI 显示端口
 }
 
-const services = reactive<Service[]>([
-  { name: 'nginx', displayName: 'Nginx', icon: 'Connection', gradient: 'linear-gradient(135deg, #009639 0%, #0ecc5a 100%)', running: false, loading: false },
-  { name: 'mysql', displayName: 'MySQL', icon: 'Coin', gradient: 'linear-gradient(135deg, #00758f 0%, #00b4d8 100%)', running: false, loading: false },
-  { name: 'redis', displayName: 'Redis', icon: 'Grid', gradient: 'linear-gradient(135deg, #dc382d 0%, #ff6b6b 100%)', running: false, loading: false }
-])
+// 基础服务列表配置
+const baseServiceConfigs = [
+  { name: 'nginx', displayName: 'Nginx', icon: 'Connection', gradient: 'linear-gradient(135deg, #009639 0%, #0ecc5a 100%)' },
+  { name: 'mysql', displayName: 'MySQL', icon: 'Coin', gradient: 'linear-gradient(135deg, #00758f 0%, #00b4d8 100%)' },
+  { name: 'redis', displayName: 'Redis', icon: 'Grid', gradient: 'linear-gradient(135deg, #dc382d 0%, #ff6b6b 100%)' }
+]
 
-const phpVersions = ref<any[]>([])
-const nodeVersions = ref<any[]>([])
-const sites = ref<any[]>([])
-const basePath = ref('')
+// 服务加载状态
+const serviceLoadingState = ref<Record<string, boolean>>({})
+
+// 从 store 计算基础服务列表
+const services = computed<Service[]>(() => {
+  return baseServiceConfigs.map(config => ({
+    ...config,
+    running: store.serviceStatus[config.name as keyof typeof store.serviceStatus] as boolean,
+    loading: serviceLoadingState.value[config.name] || false
+  }))
+})
+
+// 从 store 计算 PHP-CGI 服务列表
+const phpCgiServices = computed<Service[]>(() => {
+  return store.serviceStatus.phpCgi.map(status => ({
+    name: `php-cgi-${status.version}`,
+    displayName: `PHP ${status.version}`,
+    icon: 'Files',
+    gradient: 'linear-gradient(135deg, #777BB4 0%, #9b8ed4 100%)',
+    running: status.running,
+    loading: serviceLoadingState.value[`php-cgi-${status.version}`] || false,
+    version: status.version,
+    port: status.port
+  }))
+})
+
+// 从 store 获取数据
+const phpVersions = computed(() => store.phpVersions)
+const nodeVersions = computed(() => store.nodeVersions)
+const sites = computed(() => store.sites)
+const basePath = computed(() => store.basePath)
+
 const settingPhp = ref('')
 const settingNode = ref('')
 
-const loadData = async () => {
-  try {
-    // 加载服务状态
-    const allServices = await window.electronAPI?.service.getAll()
-    if (allServices) {
-      for (const svc of allServices) {
-        const found = services.find(s => s.name === svc.name || svc.name.startsWith(s.name))
-        if (found) {
-          found.running = svc.running
-        }
-      }
-    }
-
-    // 加载 PHP 版本
-    phpVersions.value = await window.electronAPI?.php.getVersions() || []
-
-    // 加载 Node.js 版本
-    nodeVersions.value = await window.electronAPI?.node.getVersions() || []
-
-    // 加载站点
-    sites.value = await window.electronAPI?.nginx.getSites() || []
-
-    // 加载基础路径
-    basePath.value = await window.electronAPI?.config.getBasePath() || ''
-  } catch (error: any) {
-    console.error('加载数据失败:', error)
-  }
-}
-
 const startService = async (service: Service) => {
-  service.loading = true
+  serviceLoadingState.value[service.name] = true
   try {
     let result
     if (service.name === 'nginx') {
@@ -286,20 +371,42 @@ const startService = async (service: Service) => {
     }
 
     if (result?.success) {
-      service.running = true
+      store.updateServiceStatus(service.name as 'nginx' | 'mysql' | 'redis', true)
       ElMessage.success(result.message)
     } else {
       ElMessage.error(result?.message || '启动失败')
     }
+    // 同步刷新全局状态
+    await store.refreshServiceStatus()
   } catch (error: any) {
     ElMessage.error(error.message)
   } finally {
-    service.loading = false
+    serviceLoadingState.value[service.name] = false
+  }
+}
+
+const startPhpCgi = async (service: Service) => {
+  const key = `php-cgi-${service.version}`
+  serviceLoadingState.value[key] = true
+  try {
+    const result = await window.electronAPI?.service.startPhpCgiVersion(service.version!)
+    if (result?.success) {
+      store.updatePhpCgiStatus(service.version!, true)
+      ElMessage.success(result.message)
+    } else {
+      ElMessage.error(result?.message || '启动失败')
+    }
+    // 同步刷新全局状态
+    await store.refreshServiceStatus()
+  } catch (error: any) {
+    ElMessage.error(error.message)
+  } finally {
+    serviceLoadingState.value[key] = false
   }
 }
 
 const stopService = async (service: Service) => {
-  service.loading = true
+  serviceLoadingState.value[service.name] = true
   try {
     let result
     if (service.name === 'nginx') {
@@ -314,20 +421,42 @@ const stopService = async (service: Service) => {
     }
 
     if (result?.success) {
-      service.running = false
+      store.updateServiceStatus(service.name as 'nginx' | 'mysql' | 'redis', false)
       ElMessage.success(result.message)
     } else {
       ElMessage.error(result?.message || '停止失败')
     }
+    // 同步刷新全局状态
+    await store.refreshServiceStatus()
   } catch (error: any) {
     ElMessage.error(error.message)
   } finally {
-    service.loading = false
+    serviceLoadingState.value[service.name] = false
+  }
+}
+
+const stopPhpCgi = async (service: Service) => {
+  const key = `php-cgi-${service.version}`
+  serviceLoadingState.value[key] = true
+  try {
+    const result = await window.electronAPI?.service.stopPhpCgiVersion(service.version!)
+    if (result?.success) {
+      store.updatePhpCgiStatus(service.version!, false)
+      ElMessage.success(result.message)
+    } else {
+      ElMessage.error(result?.message || '停止失败')
+    }
+    // 同步刷新全局状态
+    await store.refreshServiceStatus()
+  } catch (error: any) {
+    ElMessage.error(error.message)
+  } finally {
+    serviceLoadingState.value[key] = false
   }
 }
 
 const restartService = async (service: Service) => {
-  service.loading = true
+  serviceLoadingState.value[service.name] = true
   try {
     let result
     if (service.name === 'nginx') {
@@ -346,10 +475,67 @@ const restartService = async (service: Service) => {
     } else {
       ElMessage.error(result?.message || '重启失败')
     }
+    // 同步刷新全局状态
+    await store.refreshServiceStatus()
   } catch (error: any) {
     ElMessage.error(error.message)
   } finally {
-    service.loading = false
+    serviceLoadingState.value[service.name] = false
+  }
+}
+
+const restartPhpCgi = async (service: Service) => {
+  const key = `php-cgi-${service.version}`
+  serviceLoadingState.value[key] = true
+  try {
+    // PHP-CGI 重启：先停止再启动
+    await window.electronAPI?.service.stopPhpCgiVersion(service.version!)
+    await new Promise(resolve => setTimeout(resolve, 500))
+    const result = await window.electronAPI?.service.startPhpCgiVersion(service.version!)
+    if (result?.success) {
+      store.updatePhpCgiStatus(service.version!, true)
+      ElMessage.success(result.message)
+    } else {
+      ElMessage.error(result?.message || '重启失败')
+    }
+    // 同步刷新全局状态
+    await store.refreshServiceStatus()
+  } catch (error: any) {
+    ElMessage.error(error.message)
+  } finally {
+    serviceLoadingState.value[key] = false
+  }
+}
+
+// 启动全部 PHP-CGI
+const startAllPhpCgi = async () => {
+  try {
+    const result = await window.electronAPI?.service.startAllPhpCgi()
+    if (result?.success) {
+      ElMessage.success('全部 PHP-CGI 已启动')
+      // 刷新全局状态
+      await store.refreshServiceStatus()
+    } else {
+      ElMessage.error(result?.message || '启动失败')
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message)
+  }
+}
+
+// 停止全部 PHP-CGI
+const stopAllPhpCgi = async () => {
+  try {
+    const result = await window.electronAPI?.service.stopAllPhpCgi()
+    if (result?.success) {
+      ElMessage.success('全部 PHP-CGI 已停止')
+      // 刷新全局状态
+      await store.refreshServiceStatus()
+    } else {
+      ElMessage.error(result?.message || '停止失败')
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message)
   }
 }
 
@@ -365,8 +551,8 @@ const setActivePhp = async (version: string) => {
     const result = await window.electronAPI?.php.setActive(version)
     if (result?.success) {
       ElMessage.success(result.message)
-      // 刷新 PHP 版本列表
-      phpVersions.value = await window.electronAPI?.php.getVersions() || []
+      // 刷新全局 PHP 版本列表
+      await store.refreshPhpVersions()
     } else {
       ElMessage.error(result?.message || '设置失败')
     }
@@ -383,8 +569,8 @@ const setActiveNode = async (version: string) => {
     const result = await window.electronAPI?.node.setActive(version)
     if (result?.success) {
       ElMessage.success(result.message)
-      // 刷新 Node.js 版本列表
-      nodeVersions.value = await window.electronAPI?.node.getVersions() || []
+      // 刷新全局 Node.js 版本列表
+      await store.refreshNodeVersions()
     } else {
       ElMessage.error(result?.message || '设置失败')
     }
@@ -396,9 +582,10 @@ const setActiveNode = async (version: string) => {
 }
 
 onMounted(() => {
-  loadData()
-  // 每 10 秒刷新一次状态
-  setInterval(loadData, 10000)
+  // 如果 store 未初始化，则刷新
+  if (!store.lastUpdated) {
+    store.refreshAll()
+  }
 })
 </script>
 
@@ -591,6 +778,59 @@ onMounted(() => {
   .path-value {
     font-family: 'Fira Code', monospace;
     color: var(--accent-color);
+  }
+}
+
+.no-php-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.php-cgi-section {
+  margin-bottom: 24px;
+  
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  .section-actions {
+    display: flex;
+    gap: 8px;
+  }
+}
+
+.php-cgi-card {
+  .port-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'Fira Code', monospace;
+    margin-bottom: 4px;
+  }
+}
+
+.php-cgi-empty {
+  margin-bottom: 24px;
+  
+  a {
+    color: var(--accent-color);
+    text-decoration: none;
+    
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 </style>

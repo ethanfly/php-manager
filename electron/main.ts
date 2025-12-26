@@ -362,6 +362,19 @@ ipcMain.handle("php:saveConfig", (_, version: string, config: string) =>
   phpManager.saveConfig(version, config)
 );
 
+// ==================== Composer 管理 ====================
+ipcMain.handle("composer:getStatus", () => phpManager.getComposerStatus());
+ipcMain.handle("composer:install", () => phpManager.installComposer());
+ipcMain.handle("composer:uninstall", () => phpManager.uninstallComposer());
+ipcMain.handle("composer:setMirror", (_, mirror: string) =>
+  phpManager.setComposerMirror(mirror)
+);
+ipcMain.handle(
+  "composer:createLaravelProject",
+  (_, projectName: string, targetDir: string) =>
+    phpManager.createLaravelProject(projectName, targetDir)
+);
+
 // ==================== MySQL 管理 ====================
 ipcMain.handle("mysql:getVersions", () => mysqlManager.getInstalledVersions());
 ipcMain.handle("mysql:getAvailableVersions", () =>
@@ -489,6 +502,15 @@ ipcMain.handle("service:getAutoStart", (_, service: string) =>
 );
 ipcMain.handle("service:startAll", () => serviceManager.startAll());
 ipcMain.handle("service:stopAll", () => serviceManager.stopAll());
+// PHP-CGI 管理 - 支持多版本
+ipcMain.handle("service:getPhpCgiStatus", () => serviceManager.getPhpCgiStatus());
+ipcMain.handle("service:startPhpCgi", () => serviceManager.startPhpCgi());
+ipcMain.handle("service:stopPhpCgi", () => serviceManager.stopPhpCgi());
+ipcMain.handle("service:startAllPhpCgi", () => serviceManager.startAllPhpCgi());
+ipcMain.handle("service:stopAllPhpCgi", () => serviceManager.stopAllPhpCgi());
+ipcMain.handle("service:startPhpCgiVersion", (_, version: string) => serviceManager.startPhpCgiVersion(version));
+ipcMain.handle("service:stopPhpCgiVersion", (_, version: string) => serviceManager.stopPhpCgiVersion(version));
+ipcMain.handle("service:getPhpCgiPort", (_, version: string) => serviceManager.getPhpCgiPort(version));
 
 // ==================== Hosts 管理 ====================
 ipcMain.handle("hosts:get", () => hostsManager.getHosts());

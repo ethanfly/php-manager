@@ -2060,4 +2060,463 @@ if ($verifyPath -and $verifyPath.Contains($NewPhpPath)) {
       rmdirSync(dir);
     }
   }
+
+  // ==================== Composer 管理 ====================
+
+  /**
+   * 获取 Composer 状态
+   */
+  async getComposerStatus(): Promise<{
+    installed: boolean;
+    version?: string;
+    path?: string;
+    mirror?: string;
+  }> {
+    const composerPath = this.getComposerPath();
+    const composerBatPath = join(this.configStore.getBasePath(), "tools", "composer.bat");
+    const mirror = this.configStore.get("composerMirror") || "";
+
+    console.log("检查 Composer 路径:", composerPath);
+
+    if (!existsSync(composerPath)) {
+      console.log("Composer 未安装");
+      return { installed: false, mirror };
+    }
+
+    let version: string | undefined;
+
+    // 方法1: 尝试直接使用 composer.bat（如果在 PATH 中）
+    try {
+      console.log("尝试使用 composer --version...");
+      const { stdout } = await execAsync("composer --version", {
+        windowsHide: true,
+        timeout: 15000,
+        encoding: "utf8",
+      });
+      console.log("Composer 输出:", stdout);
+      
+      // 解析版本号 - 支持多种格式
+      // "Composer version 2.9-dev+9497eca6e15b115d25833c68b7c5c76589953b65 (2.9-dev)"
+      // "Composer version 2.7.1 2024-01-01"
+      const versionMatch = stdout.match(/Composer version (\d+\.\d+(?:\.\d+)?(?:-\w+)?)/);
+      if (versionMatch) {
+        version = versionMatch[1];
+        console.log("解析到版本:", version);
+        return { installed: true, version, path: composerPath, mirror };
+      }
+    } catch (e: any) {
+      console.log("composer 命令不可用，尝试其他方式:", e.message);
+    }
+
+    // 方法2: 使用 composer.bat
+    if (existsSync(composerBatPath)) {
+      try {
+        console.log("尝试使用 composer.bat...");
+        const { stdout } = await execAsync(`"${composerBatPath}" --version`, {
+          windowsHide: true,
+          timeout: 15000,
+          encoding: "utf8",
+        });
+        const versionMatch = stdout.match(/Composer version (\d+\.\d+(?:\.\d+)?(?:-\w+)?)/);
+        if (versionMatch) {
+          version = versionMatch[1];
+          console.log("解析到版本:", version);
+          return { installed: true, version, path: composerPath, mirror };
+        }
+      } catch (e: any) {
+        console.log("composer.bat 执行失败:", e.message);
+      }
+    }
+
+    // 方法3: 使用 PHP 运行 composer.phar
+    try {
+      const activePhp = this.configStore.get("activePhpVersion");
+      if (activePhp) {
+        const phpPath = this.configStore.getPhpPath(activePhp);
+        const phpExe = join(phpPath, "php.exe");
+
+        if (existsSync(phpExe)) {
+          console.log("尝试使用 PHP 运行 composer.phar...");
+          const { stdout } = await execAsync(`"${phpExe}" "${composerPath}" --version`, {
+            windowsHide: true,
+            timeout: 15000,
+            encoding: "utf8",
+          });
+          const versionMatch = stdout.match(/Composer version (\d+\.\d+(?:\.\d+)?(?:-\w+)?)/);
+          if (versionMatch) {
+            version = versionMatch[1];
+            console.log("解析到版本:", version);
+          }
+        }
+      }
+    } catch (e: any) {
+      console.log("PHP 运行 composer.phar 失败:", e.message);
+    }
+
+    return { installed: true, version, path: composerPath, mirror };
+  }
+
+  /**
+   * 获取 Composer 路径
+   */
+  private getComposerPath(): string {
+    return join(this.configStore.getBasePath(), "tools", "composer.phar");
+  }
+
+  /**
+   * 安装 Composer
+   */
+  async installComposer(): Promise<{ success: boolean; message: string }> {
+    try {
+      const toolsDir = join(this.configStore.getBasePath(), "tools");
+      const composerPath = join(toolsDir, "composer.phar");
+      const composerBatPath = join(toolsDir, "composer.bat");
+
+      // 确保目录存在
+      if (!existsSync(toolsDir)) {
+        mkdirSync(toolsDir, { recursive: true });
+      }
+
+      // 下载 Composer
+      console.log("正在下载 Composer...");
+      
+      // 尝试多个下载源
+      const urls = [
+        "https://getcomposer.org/composer.phar",
+        "https://mirrors.aliyun.com/composer/composer.phar",
+      ];
+
+      let downloaded = false;
+      let lastError: Error | null = null;
+
+      for (const url of urls) {
+        try {
+          console.log(`尝试从 ${url} 下载...`);
+          await this.downloadFile(url, composerPath);
+          downloaded = true;
+          break;
+        } catch (e: any) {
+          console.error(`从 ${url} 下载失败:`, e.message);
+          lastError = e;
+        }
+      }
+
+      if (!downloaded) {
+        throw lastError || new Error("所有下载源均失败");
+      }
+
+      // 验证文件是否下载成功
+      if (!existsSync(composerPath)) {
+        return { success: false, message: "Composer 下载失败，文件不存在" };
+      }
+
+      // 创建 composer.bat 批处理文件
+      const batContent = `@echo off\r\nphp "%~dp0composer.phar" %*`;
+      writeFileSync(composerBatPath, batContent);
+      console.log("创建 composer.bat:", composerBatPath);
+
+      // 添加到环境变量
+      await this.addComposerToPath(toolsDir);
+
+      // 验证安装
+      const activePhp = this.configStore.get("activePhpVersion");
+      if (activePhp) {
+        const phpPath = this.configStore.getPhpPath(activePhp);
+        const phpExe = join(phpPath, "php.exe");
+
+        if (existsSync(phpExe)) {
+          try {
+            const { stdout } = await execAsync(`"${phpExe}" "${composerPath}" --version`, {
+              windowsHide: true,
+              timeout: 10000,
+            });
+            console.log("Composer 安装成功:", stdout);
+          } catch (e) {
+            console.log("Composer 已下载，但验证失败（可能是 PHP 问题）");
+          }
+        }
+      }
+
+      return { success: true, message: "Composer 安装成功，已添加到系统环境变量" };
+    } catch (error: any) {
+      console.error("Composer 安装失败:", error);
+      return { success: false, message: `安装失败: ${error.message}` };
+    }
+  }
+
+  /**
+   * 卸载 Composer
+   */
+  async uninstallComposer(): Promise<{ success: boolean; message: string }> {
+    try {
+      const toolsDir = join(this.configStore.getBasePath(), "tools");
+      const composerPath = join(toolsDir, "composer.phar");
+      const composerBatPath = join(toolsDir, "composer.bat");
+
+      // 删除文件
+      if (existsSync(composerPath)) {
+        unlinkSync(composerPath);
+        console.log("已删除:", composerPath);
+      }
+
+      if (existsSync(composerBatPath)) {
+        unlinkSync(composerBatPath);
+        console.log("已删除:", composerBatPath);
+      }
+
+      // 从环境变量移除
+      await this.removeComposerFromPath(toolsDir);
+
+      return { success: true, message: "Composer 已卸载" };
+    } catch (error: any) {
+      console.error("Composer 卸载失败:", error);
+      return { success: false, message: `卸载失败: ${error.message}` };
+    }
+  }
+
+  /**
+   * 添加 Composer 到环境变量
+   */
+  private async addComposerToPath(toolsDir: string): Promise<void> {
+    try {
+      const tempScriptPath = join(this.configStore.getTempPath(), "add_composer_path.ps1");
+      mkdirSync(this.configStore.getTempPath(), { recursive: true });
+
+      const psScript = `
+param([string]$ComposerPath)
+
+$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+if ($userPath -eq $null) { $userPath = '' }
+
+# Check if already exists
+if ($userPath.ToLower().Contains($ComposerPath.ToLower())) {
+    Write-Host "Composer path already in PATH"
+    exit 0
+}
+
+# Add to PATH
+$newPath = $ComposerPath + ";" + $userPath
+[Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
+
+Write-Host "SUCCESS: Composer path added to user PATH"
+`;
+
+      writeFileSync(tempScriptPath, psScript, "utf-8");
+
+      const { stdout } = await execAsync(
+        `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -ComposerPath "${toolsDir}"`,
+        { windowsHide: true, timeout: 30000 }
+      );
+
+      console.log("Composer PATH 更新:", stdout);
+
+      if (existsSync(tempScriptPath)) {
+        unlinkSync(tempScriptPath);
+      }
+    } catch (error: any) {
+      console.error("添加 Composer 到 PATH 失败:", error);
+    }
+  }
+
+  /**
+   * 从环境变量移除 Composer
+   */
+  private async removeComposerFromPath(toolsDir: string): Promise<void> {
+    try {
+      const tempScriptPath = join(this.configStore.getTempPath(), "remove_composer_path.ps1");
+      mkdirSync(this.configStore.getTempPath(), { recursive: true });
+
+      const psScript = `
+param([string]$ComposerPath)
+
+$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+if ($userPath -eq $null) { exit 0 }
+
+$paths = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.ToLower() -ne $ComposerPath.ToLower() }
+$newPath = $paths -join ';'
+
+[Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
+
+Write-Host "SUCCESS: Composer path removed from user PATH"
+`;
+
+      writeFileSync(tempScriptPath, psScript, "utf-8");
+
+      const { stdout } = await execAsync(
+        `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -ComposerPath "${toolsDir}"`,
+        { windowsHide: true, timeout: 30000 }
+      );
+
+      console.log("Composer PATH 移除:", stdout);
+
+      if (existsSync(tempScriptPath)) {
+        unlinkSync(tempScriptPath);
+      }
+    } catch (error: any) {
+      console.error("从 PATH 移除 Composer 失败:", error);
+    }
+  }
+
+  /**
+   * 设置 Composer 镜像
+   */
+  async setComposerMirror(
+    mirror: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const activePhp = this.configStore.get("activePhpVersion");
+      if (!activePhp) {
+        return { success: false, message: "请先设置默认 PHP 版本" };
+      }
+
+      const composerPath = this.getComposerPath();
+      if (!existsSync(composerPath)) {
+        return { success: false, message: "Composer 未安装" };
+      }
+
+      const phpPath = this.configStore.getPhpPath(activePhp);
+      const phpExe = join(phpPath, "php.exe");
+
+      // 检查 PHP 是否存在
+      if (!existsSync(phpExe)) {
+        return { success: false, message: `PHP 未找到: ${phpExe}` };
+      }
+
+      // 先移除旧的镜像配置
+      try {
+        await execAsync(
+          `"${phpExe}" "${composerPath}" config -g --unset repos.packagist`,
+          { windowsHide: true, timeout: 30000 }
+        );
+      } catch (e) {
+        // 忽略移除失败
+      }
+
+      if (mirror) {
+        // 设置新镜像
+        await execAsync(
+          `"${phpExe}" "${composerPath}" config -g repos.packagist composer ${mirror}`,
+          { windowsHide: true, timeout: 30000 }
+        );
+      }
+
+      // 保存到配置
+      this.configStore.set("composerMirror", mirror);
+
+      const mirrorName = this.getMirrorName(mirror);
+      return {
+        success: true,
+        message: mirror ? `已设置镜像为: ${mirrorName}` : "已恢复为官方源",
+      };
+    } catch (error: any) {
+      console.error("设置镜像失败:", error);
+      // 即使命令执行失败，也保存配置（因为镜像配置主要在创建项目时使用）
+      this.configStore.set("composerMirror", mirror);
+      const mirrorName = this.getMirrorName(mirror);
+      return {
+        success: true,
+        message: mirror ? `镜像配置已保存: ${mirrorName}` : "已恢复为官方源",
+      };
+    }
+  }
+
+  /**
+   * 获取镜像名称
+   */
+  private getMirrorName(mirror: string): string {
+    const mirrors: Record<string, string> = {
+      "https://mirrors.aliyun.com/composer/": "阿里云镜像",
+      "https://mirrors.cloud.tencent.com/composer/": "腾讯云镜像",
+      "https://mirrors.huaweicloud.com/repository/php/": "华为云镜像",
+      "https://packagist.phpcomposer.com": "中国全量镜像",
+    };
+    return mirrors[mirror] || mirror;
+  }
+
+  /**
+   * 创建 Laravel 项目
+   */
+  async createLaravelProject(
+    projectName: string,
+    targetDir: string
+  ): Promise<{ success: boolean; message: string; projectPath?: string }> {
+    try {
+      const activePhp = this.configStore.get("activePhpVersion");
+      if (!activePhp) {
+        return { success: false, message: "请先设置默认 PHP 版本" };
+      }
+
+      const composerPath = this.getComposerPath();
+      if (!existsSync(composerPath)) {
+        return { success: false, message: "Composer 未安装，请先安装 Composer" };
+      }
+
+      const phpPath = this.configStore.getPhpPath(activePhp);
+      const phpExe = join(phpPath, "php.exe");
+
+      // 检查 PHP 是否存在
+      if (!existsSync(phpExe)) {
+        return { success: false, message: `PHP 未找到: ${phpExe}` };
+      }
+
+      // 确保目标目录存在
+      if (!existsSync(targetDir)) {
+        mkdirSync(targetDir, { recursive: true });
+      }
+
+      const projectPath = join(targetDir, projectName);
+
+      // 检查项目目录是否已存在
+      if (existsSync(projectPath)) {
+        return { success: false, message: `项目目录已存在: ${projectPath}` };
+      }
+
+      console.log(`创建 Laravel 项目: ${projectName} 在 ${targetDir}`);
+
+      // 获取镜像配置
+      const mirror = this.configStore.get("composerMirror");
+      let repoOption = "";
+      if (mirror) {
+        // 使用环境变量设置镜像
+        repoOption = `--repository=${mirror}`;
+      }
+
+      // 使用 composer create-project 创建 Laravel 项目
+      const cmd = `"${phpExe}" "${composerPath}" create-project --prefer-dist ${repoOption} laravel/laravel "${projectName}"`;
+
+      console.log("执行命令:", cmd);
+
+      const { stdout, stderr } = await execAsync(cmd, {
+        cwd: targetDir,
+        windowsHide: true,
+        timeout: 600000, // 10 分钟超时
+        env: {
+          ...process.env,
+          COMPOSER_PROCESS_TIMEOUT: "600",
+          COMPOSER_HOME: join(this.configStore.getBasePath(), "tools", "composer"),
+        },
+      });
+
+      console.log("Composer 输出:", stdout);
+      if (stderr) console.log("Composer stderr:", stderr);
+
+      // 验证项目创建成功
+      if (existsSync(join(projectPath, "artisan"))) {
+        return {
+          success: true,
+          message: `Laravel 项目 "${projectName}" 创建成功`,
+          projectPath,
+        };
+      } else {
+        return { success: false, message: "项目创建失败，请查看日志" };
+      }
+    } catch (error: any) {
+      console.error("创建 Laravel 项目失败:", error);
+      let errorMsg = error.message;
+      if (error.stderr) {
+        errorMsg = error.stderr;
+      }
+      return { success: false, message: `创建失败: ${errorMsg}` };
+    }
+  }
 }

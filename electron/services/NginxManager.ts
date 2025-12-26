@@ -34,6 +34,20 @@ export class NginxManager {
   }
 
   /**
+   * 根据 PHP 版本获取 FastCGI 端口
+   * PHP 8.0.x -> 9080, PHP 8.1.x -> 9081, etc.
+   */
+  private getPhpCgiPort(version: string): number {
+    const match = version.match(/^(\d+)\.(\d+)/)
+    if (match) {
+      const major = parseInt(match[1])
+      const minor = parseInt(match[2])
+      return 9000 + major * 10 + minor  // 8.5 -> 9085, 8.4 -> 9084, 8.3 -> 9083
+    }
+    return 9000
+  }
+
+  /**
    * 获取已安装的 Nginx 版本列表
    */
   async getInstalledVersions(): Promise<NginxVersion[]> {
@@ -612,8 +626,10 @@ http {
   private generateSiteConfig(site: SiteConfig): string {
     const phpPath = this.configStore.getPhpPath(site.phpVersion)
     const logsPath = this.configStore.getLogsPath()
+    const phpCgiPort = this.getPhpCgiPort(site.phpVersion)
 
     let config = `
+# PHP Version: ${site.phpVersion} -> Port ${phpCgiPort}
 server {
     listen 80;
     server_name ${site.domain};
@@ -628,7 +644,7 @@ server {
     }
 
     location ~ \\.php$ {
-        fastcgi_pass   127.0.0.1:9000;
+        fastcgi_pass   127.0.0.1:${phpCgiPort};
         fastcgi_index  index.php;
         fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
         include        fastcgi_params;
@@ -662,7 +678,7 @@ server {
     }
 
     location ~ \\.php$ {
-        fastcgi_pass   127.0.0.1:9000;
+        fastcgi_pass   127.0.0.1:${phpCgiPort};
         fastcgi_index  index.php;
         fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
         include        fastcgi_params;
@@ -682,8 +698,10 @@ server {
     const logsPath = this.configStore.getLogsPath()
     // Laravel 项目 public 目录
     const publicPath = join(site.rootPath, 'public').replace(/\\/g, '/')
+    const phpCgiPort = this.getPhpCgiPort(site.phpVersion)
 
     let config = `
+# Laravel Project - PHP Version: ${site.phpVersion} -> Port ${phpCgiPort}
 server {
     listen 80;
     server_name ${site.domain};
@@ -708,7 +726,7 @@ server {
     error_page 404 /index.php;
 
     location ~ \\.php$ {
-        fastcgi_pass   127.0.0.1:9000;
+        fastcgi_pass   127.0.0.1:${phpCgiPort};
         fastcgi_param  SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include        fastcgi_params;
     }
@@ -752,7 +770,7 @@ server {
     error_page 404 /index.php;
 
     location ~ \\.php$ {
-        fastcgi_pass   127.0.0.1:9000;
+        fastcgi_pass   127.0.0.1:${phpCgiPort};
         fastcgi_param  SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include        fastcgi_params;
     }

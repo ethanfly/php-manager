@@ -73,19 +73,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useServiceStore } from './stores/serviceStore'
+
+const store = useServiceStore()
 
 const isDark = ref(true)
 const startingAll = ref(false)
 const stoppingAll = ref(false)
 
-// 服务状态
-const serviceStatus = reactive({
-  nginx: false,
-  mysql: false,
-  redis: false
-})
+// 从 store 获取服务状态
+const serviceStatus = computed(() => ({
+  nginx: store.serviceStatus.nginx,
+  mysql: store.serviceStatus.mysql,
+  redis: store.serviceStatus.redis
+}))
 
 const menuItems = [
   { path: '/', label: '仪表盘', icon: 'Odometer', service: null },
@@ -98,20 +101,6 @@ const menuItems = [
   { path: '/hosts', label: 'Hosts 管理', icon: 'Document', service: null },
   { path: '/settings', label: '设置', icon: 'Setting', service: null }
 ]
-
-// 加载服务状态
-const loadServiceStatus = async () => {
-  try {
-    const services = await window.electronAPI?.service.getAll()
-    if (services) {
-      serviceStatus.nginx = services.some(s => s.name === 'nginx' && s.running)
-      serviceStatus.mysql = services.some(s => s.name.startsWith('mysql') && s.running)
-      serviceStatus.redis = services.some(s => s.name === 'redis' && s.running)
-    }
-  } catch (error) {
-    console.error('加载服务状态失败:', error)
-  }
-}
 
 let statusInterval: ReturnType<typeof setInterval> | null = null
 
@@ -134,7 +123,7 @@ const startAll = async () => {
     if (result?.success) {
       ElMessage.success(result.message)
       // 延迟刷新状态，等待服务启动
-      setTimeout(loadServiceStatus, 2000)
+      setTimeout(() => store.refreshServiceStatus(), 2000)
     } else {
       ElMessage.error(result?.message || '启动失败')
     }
@@ -152,7 +141,7 @@ const stopAll = async () => {
     const result = await window.electronAPI?.service.stopAll()
     if (result?.success) {
       ElMessage.success(result.message)
-      await loadServiceStatus()
+      await store.refreshServiceStatus()
     } else {
       ElMessage.error(result?.message || '停止失败')
     }
@@ -165,9 +154,10 @@ const stopAll = async () => {
 
 onMounted(() => {
   document.documentElement.classList.add('dark')
-  loadServiceStatus()
+  // 初始化加载所有状态
+  store.refreshAll()
   // 每 5 秒刷新一次状态
-  statusInterval = setInterval(loadServiceStatus, 5000)
+  statusInterval = setInterval(() => store.refreshServiceStatus(), 5000)
 })
 
 onUnmounted(() => {

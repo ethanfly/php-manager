@@ -81,6 +81,91 @@
       </div>
     </div>
 
+    <!-- Composer 管理 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <el-icon><Box /></el-icon>
+          Composer 管理
+        </span>
+      </div>
+      <div class="card-content">
+        <div class="composer-status">
+          <div class="status-info">
+            <div class="status-icon" :class="{ installed: composerStatus.installed }">
+              <el-icon v-if="composerStatus.installed"><Check /></el-icon>
+              <el-icon v-else><Close /></el-icon>
+            </div>
+            <div class="status-details">
+              <div class="status-title">
+                {{ composerStatus.installed ? 'Composer 已安装' : 'Composer 未安装' }}
+                <el-tag v-if="composerStatus.version" type="success" size="small" class="ml-2">
+                  v{{ composerStatus.version }}
+                </el-tag>
+                <el-tag v-else-if="composerStatus.installed" type="warning" size="small" class="ml-2">
+                  版本未知（请设置默认 PHP）
+                </el-tag>
+              </div>
+              <div class="status-path" v-if="composerStatus.path">
+                {{ composerStatus.path }}
+              </div>
+            </div>
+          </div>
+          <div class="status-actions">
+            <el-button 
+              v-if="!composerStatus.installed"
+              type="primary" 
+              @click="installComposer"
+              :loading="installingComposer"
+            >
+              <el-icon><Download /></el-icon>
+              安装 Composer
+            </el-button>
+            <template v-else>
+              <el-button @click="showMirrorDialog = true">
+                <el-icon><Setting /></el-icon>
+                设置镜像
+              </el-button>
+              <el-button type="danger" @click="uninstallComposer" :loading="uninstallingComposer">
+                <el-icon><Delete /></el-icon>
+                卸载
+              </el-button>
+            </template>
+          </div>
+        </div>
+        
+        <!-- 当前镜像显示 -->
+        <div v-if="composerStatus.installed" class="mirror-info">
+          <span class="mirror-label">当前镜像源：</span>
+          <span class="mirror-value">{{ getMirrorDisplayName(composerStatus.mirror) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Composer 镜像设置对话框 -->
+    <el-dialog 
+      v-model="showMirrorDialog" 
+      title="设置 Composer 镜像"
+      width="500px"
+    >
+      <el-form label-width="80px">
+        <el-form-item label="镜像源">
+          <el-select v-model="selectedMirror" placeholder="选择镜像源" style="width: 100%">
+            <el-option label="官方源（默认）" value="" />
+            <el-option label="阿里云镜像" value="https://mirrors.aliyun.com/composer/" />
+            <el-option label="腾讯云镜像" value="https://mirrors.cloud.tencent.com/composer/" />
+            <el-option label="华为云镜像" value="https://mirrors.huaweicloud.com/repository/php/" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showMirrorDialog = false">取消</el-button>
+        <el-button type="primary" @click="setMirror" :loading="settingMirror">
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 安装对话框 -->
     <el-dialog 
       v-model="showInstallDialog" 
@@ -283,6 +368,9 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { FolderOpened } from '@element-plus/icons-vue'
+import { useServiceStore } from '@/stores/serviceStore'
+
+const store = useServiceStore()
 
 interface PhpVersion {
   version: string
@@ -372,12 +460,109 @@ const showConfigDialog = ref(false)
 const configContent = ref('')
 const savingConfig = ref(false)
 
+// Composer 相关
+const composerStatus = ref<{
+  installed: boolean
+  version?: string
+  path?: string
+  mirror?: string
+}>({ installed: false })
+const installingComposer = ref(false)
+const uninstallingComposer = ref(false)
+const showMirrorDialog = ref(false)
+const selectedMirror = ref('')
+const settingMirror = ref(false)
+
 const loadVersions = async () => {
   try {
     installedVersions.value = await window.electronAPI?.php.getVersions() || []
+    // 同步更新全局状态
+    store.refreshPhpVersions()
+    store.refreshServiceStatus()
   } catch (error: any) {
     console.error('加载版本失败:', error)
   }
+}
+
+// Composer 相关方法
+const loadComposerStatus = async () => {
+  try {
+    composerStatus.value = await window.electronAPI?.composer?.getStatus() || { installed: false }
+    selectedMirror.value = composerStatus.value.mirror || ''
+  } catch (error: any) {
+    console.error('加载 Composer 状态失败:', error)
+  }
+}
+
+const installComposer = async () => {
+  installingComposer.value = true
+  try {
+    const result = await window.electronAPI?.composer?.install()
+    if (result?.success) {
+      ElMessage.success(result.message)
+      await loadComposerStatus()
+    } else {
+      ElMessage.error(result?.message || '安装失败')
+    }
+  } catch (error: any) {
+    ElMessage.error('安装失败: ' + error.message)
+  } finally {
+    installingComposer.value = false
+  }
+}
+
+const uninstallComposer = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要卸载 Composer 吗？',
+      '确认卸载',
+      { type: 'warning' }
+    )
+    
+    uninstallingComposer.value = true
+    const result = await window.electronAPI?.composer?.uninstall()
+    if (result?.success) {
+      ElMessage.success(result.message)
+      await loadComposerStatus()
+    } else {
+      ElMessage.error(result?.message || '卸载失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error('卸载失败: ' + error.message)
+    }
+  } finally {
+    uninstallingComposer.value = false
+  }
+}
+
+const setMirror = async () => {
+  settingMirror.value = true
+  try {
+    const result = await window.electronAPI?.composer?.setMirror(selectedMirror.value)
+    if (result?.success) {
+      ElMessage.success(result.message)
+      showMirrorDialog.value = false
+      await loadComposerStatus()
+    } else {
+      ElMessage.error(result?.message || '设置失败')
+    }
+  } catch (error: any) {
+    ElMessage.error('设置失败: ' + error.message)
+  } finally {
+    settingMirror.value = false
+  }
+}
+
+const getMirrorDisplayName = (mirror?: string) => {
+  if (!mirror) return '官方源'
+  const mirrors: Record<string, string> = {
+    'https://mirrors.aliyun.com/composer/': '阿里云镜像',
+    'https://mirrors.cloud.tencent.com/composer/': '腾讯云镜像',
+    'https://mirrors.huaweicloud.com/repository/php/': '华为云镜像',
+    'https://packagist.phpcomposer.com': '中国全量镜像'
+  }
+  return mirrors[mirror] || mirror
 }
 
 const loadAvailableVersions = async () => {
@@ -448,6 +633,8 @@ const setActive = async (version: string) => {
     if (result?.success) {
       ElMessage.success(result.message)
       await loadVersions()
+      // 刷新 Composer 状态（因为默认 PHP 改变了）
+      await loadComposerStatus()
     } else {
       ElMessage.error(result?.message || '设置失败')
     }
@@ -618,6 +805,7 @@ const formatSize = (bytes: number) => {
 onMounted(() => {
   loadVersions()
   loadAvailableVersions()
+  loadComposerStatus()
   
   // 监听下载进度
   window.electronAPI?.onDownloadProgress((data: any) => {
@@ -830,6 +1018,75 @@ onUnmounted(() => {
 .code-editor {
   width: 100%;
   height: 500px;
+}
+
+// Composer 管理样式
+.composer-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  
+  .status-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .status-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--text-muted);
+    
+    &.installed {
+      background: rgba(103, 194, 58, 0.1);
+      color: var(--success-color);
+    }
+  }
+  
+  .status-details {
+    .status-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .status-path {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'Fira Code', monospace;
+    }
+  }
+  
+  .status-actions {
+    display: flex;
+    gap: 8px;
+  }
+}
+
+.mirror-info {
+  padding: 12px 16px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  margin-top: 12px;
+  
+  .mirror-label {
+    color: var(--text-secondary);
+    margin-right: 8px;
+  }
+  
+  .mirror-value {
+    color: var(--accent-color);
+    font-weight: 500;
+  }
 }
 </style>
 

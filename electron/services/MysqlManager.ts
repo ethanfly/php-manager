@@ -341,12 +341,16 @@ export class MysqlManager {
         } catch (pwdError: any) {
           console.log('设置默认密码失败，root密码为空:', pwdError.message)
         }
+        
+        // 设置密码后停止 MySQL，让用户手动启动
+        console.log('停止 MySQL 服务...')
+        await this.stop(version)
       }
 
       console.log(`MySQL ${version} 安装完成`)
       return { 
         success: true, 
-        message: `MySQL ${version} 安装成功！\n\n连接信息：\n• 主机：localhost\n• 端口：3306\n• 用户：root\n• 密码：123456` 
+        message: `MySQL ${version} 安装成功！\n\n连接信息：\n• 主机：localhost\n• 端口：3306\n• 用户：root\n• 密码：123456\n\n注意：MySQL 已停止，请手动启动服务。` 
       }
     } catch (error: any) {
       console.error('MySQL 安装失败:', error)

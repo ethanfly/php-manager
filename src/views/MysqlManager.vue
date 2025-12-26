@@ -220,6 +220,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useServiceStore } from '@/stores/serviceStore'
+
+const store = useServiceStore()
 
 interface MysqlVersion {
   version: string
@@ -262,6 +265,8 @@ const currentVersion = ref('')
 const loadVersions = async () => {
   try {
     installedVersions.value = await window.electronAPI?.mysql.getVersions() || []
+    // 同步更新全局状态
+    store.refreshServiceStatus()
   } catch (error: any) {
     console.error('加载版本失败:', error)
   }

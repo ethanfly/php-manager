@@ -19,6 +19,8 @@ interface ConfigSchema {
   // 应用设置
   autoLaunch: boolean;
   startMinimized: boolean;
+  // Composer 设置
+  composerMirror: string;
 }
 
 export interface SiteConfig {
@@ -66,6 +68,8 @@ export class ConfigStore {
         // 应用设置默认值
         autoLaunch: false,
         startMinimized: false,
+        // Composer 镜像（空为官方源）
+        composerMirror: "",
       },
     });
 
