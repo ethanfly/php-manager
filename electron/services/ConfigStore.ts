@@ -33,19 +33,21 @@ export interface SiteConfig {
   enabled: boolean;
   // 反向代理配置
   isProxy?: boolean;
-  proxyTarget?: string;  // 代理目标地址，如 http://127.0.0.1:3000
+  proxyTarget?: string; // 代理目标地址，如 http://127.0.0.1:3000
 }
 
-// 获取应用安装目录下的 data 路径
+// 获取与应用安装目录平级的 service 路径
 function getDefaultBasePath(): string {
   if (app.isPackaged) {
-    // 生产环境：使用可执行文件所在目录下的 data 文件夹
+    // 生产环境：使用与应用安装目录平级的 service 文件夹
+    // 例如：app 在 C:\DevTools\PHPer开发环境管理器\，service 在 C:\DevTools\service\
     const exePath = app.getPath("exe");
     const appDir = dirname(exePath);
-    return join(appDir, "data");
+    const parentDir = dirname(appDir);
+    return join(parentDir, "service");
   } else {
-    // 开发环境：使用项目根目录下的 data 文件夹
-    return join(process.cwd(), "data");
+    // 开发环境：使用项目根目录下的 service 文件夹
+    return join(process.cwd(), "service");
   }
 }
 
@@ -76,7 +78,7 @@ export class ConfigStore {
       },
     });
 
-    // 直接使用应用安装目录下的 data 路径
+    // 使用与应用安装目录平级的 service 路径
     this.basePath = getDefaultBasePath();
     this.store.set("basePath", this.basePath);
     this.ensureDirectories();
