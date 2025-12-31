@@ -16,6 +16,10 @@
           Hosts 条目
         </span>
         <div class="card-actions">
+          <el-button @click="refreshHosts" :loading="refreshing">
+            <el-icon v-if="!refreshing"><RefreshRight /></el-icon>
+            刷新 Hosts
+          </el-button>
           <el-button @click="flushDns">
             <el-icon><Refresh /></el-icon>
             刷新 DNS
@@ -101,6 +105,7 @@ interface HostEntry {
 }
 
 const loading = ref(false)
+const refreshing = ref(false)
 const hosts = ref<HostEntry[]>([])
 const showAddDialog = ref(false)
 const adding = ref(false)
@@ -115,6 +120,19 @@ const loadHosts = async () => {
     hosts.value = await window.electronAPI?.hosts.get() || []
   } catch (error: any) {
     console.error('加载 hosts 失败:', error)
+  }
+}
+
+const refreshHosts = async () => {
+  refreshing.value = true
+  try {
+    hosts.value = await window.electronAPI?.hosts.get() || []
+    ElMessage.success('Hosts 列表已刷新')
+  } catch (error: any) {
+    console.error('刷新 hosts 失败:', error)
+    ElMessage.error('刷新失败: ' + error.message)
+  } finally {
+    refreshing.value = false
   }
 }
 
