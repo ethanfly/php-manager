@@ -7,10 +7,11 @@ exports.default = async function(context) {
     return;
   }
 
-  console.log('Running afterPack hook to set icon...');
+  console.log('Running afterPack hook to set icon and version info...');
   
   const appOutDir = context.appOutDir;
   const productName = context.packager.appInfo.productName;
+  const version = context.packager.appInfo.version;
   const exePath = path.join(appOutDir, `${productName}.exe`);
   const iconPath = path.join(__dirname, 'icon.ico');
   
@@ -25,18 +26,29 @@ exports.default = async function(context) {
   }
   
   try {
-    // 使用 npm 安装的 rcedit 模块
-    const { rcedit } = require('rcedit');
+    // rcedit 是默认导出
+    const rcedit = require('rcedit');
     
-    console.log(`Setting icon for: ${exePath}`);
+    console.log(`Setting icon and version info for: ${exePath}`);
     console.log(`Using icon: ${iconPath}`);
     
     await rcedit(exePath, {
-      icon: iconPath
+      icon: iconPath,
+      'version-string': {
+        'ProductName': productName,
+        'FileDescription': productName,
+        'CompanyName': 'PHPer',
+        'LegalCopyright': 'Copyright © 2024 PHPer',
+        'OriginalFilename': `${productName}.exe`,
+        'InternalName': productName
+      },
+      'file-version': version,
+      'product-version': version
     });
     
-    console.log('Icon set successfully!');
+    console.log('Icon and version info set successfully!');
   } catch (error) {
     console.error('Failed to set icon:', error.message);
+    // 不阻止打包继续
   }
 };

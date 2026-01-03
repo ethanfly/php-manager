@@ -75,8 +75,9 @@
         }
       ],
       "icon": "build/icon.ico",
+      "executableName": "PHPer开发环境管理器",
       "requestedExecutionLevel": "requireAdministrator",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": true
     },
     "nsis": {
       "oneClick": false,

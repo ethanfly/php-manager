@@ -241,6 +241,15 @@ function createTray() {
   });
 }
 
+// 设置应用名称和 Windows AppUserModelId（用于任务栏图标分组和进程名称显示）
+const APP_NAME = "PHPer开发环境管理器";
+const APP_ID = "com.phper.devmanager";
+
+app.setName(APP_NAME);
+if (process.platform === "win32") {
+  app.setAppUserModelId(APP_ID);
+}
+
 // 单实例锁定
 const gotTheLock = app.requestSingleInstanceLock();
 
