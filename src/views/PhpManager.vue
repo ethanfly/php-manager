@@ -352,21 +352,34 @@
           </div>
           <div v-else class="extensions-list">
             <div class="extensions-count">
-              找到 {{ availableExtensions.length }} 个适用于 PHP {{ currentVersion }} 的扩展
+              找到 {{ availableExtensions.length }} 个扩展
             </div>
             <div 
               v-for="ext in availableExtensions" 
               :key="ext.name"
               class="extension-item"
+              :class="{ 'not-available': ext.notAvailableReason }"
             >
               <div class="ext-info">
                 <div class="ext-main">
                   <span class="ext-name" v-html="highlightKeyword(ext.name)"></span>
-                  <el-tag type="warning" size="small">v{{ ext.version }}</el-tag>
+                  <el-tag type="info" size="small">{{ ext.version === 'latest' ? '最新版' : 'v' + ext.version }}</el-tag>
                 </div>
                 <span class="ext-desc" v-if="ext.description">{{ ext.description }}</span>
+                <span class="ext-not-available" v-if="ext.notAvailableReason">
+                  <el-icon><Warning /></el-icon>
+                  {{ ext.notAvailableReason }}
+                </span>
               </div>
+              <!-- 有明确不可用原因时显示不支持 -->
+              <el-tooltip v-if="ext.notAvailableReason" :content="ext.notAvailableReason" placement="top">
+                <el-button type="info" size="small" disabled>
+                  不支持
+                </el-button>
+              </el-tooltip>
+              <!-- 否则显示安装按钮 -->
               <el-button 
+                v-else
                 type="primary" 
                 size="small" 
                 @click="installExtension(ext)"
@@ -415,7 +428,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, onActivated } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { FolderOpened, InfoFilled, VideoPlay, VideoPause, EditPen } from '@element-plus/icons-vue'
+import { FolderOpened, InfoFilled, VideoPlay, VideoPause, EditPen, Warning } from '@element-plus/icons-vue'
 import { useServiceStore } from '@/stores/serviceStore'
 import LogViewer from '@/components/LogViewer.vue'
 
@@ -451,6 +464,8 @@ interface AvailableExtension {
   downloadUrl: string
   description?: string
   packageName?: string  // Packagist 包名，用于 PIE 安装
+  supportedPhpVersions?: string[]  // 支持的 PHP 版本
+  notAvailableReason?: string  // 不可用原因
 }
 
 const loading = ref(false)
@@ -1081,6 +1096,11 @@ onUnmounted(() => {
     border-bottom: none;
   }
   
+  &.not-available {
+    opacity: 0.7;
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+  
   .ext-info {
     display: flex;
     flex-direction: column;
@@ -1100,6 +1120,14 @@ onUnmounted(() => {
     .ext-desc {
       font-size: 12px;
       color: var(--text-muted);
+    }
+    
+    .ext-not-available {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--warning-color, #e6a23c);
     }
   }
 }

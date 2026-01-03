@@ -36,6 +36,8 @@ interface AvailablePeclExtension {
   downloadUrl: string;
   description?: string;
   packageName?: string; // Packagist 包名，用于 PIE 安装
+  supportedPhpVersions?: string[]; // 支持的 PHP 版本列表
+  notAvailableReason?: string; // 不可用原因
 }
 
 interface AvailablePhpVersion {
@@ -634,7 +636,7 @@ export class PhpManager {
   }
 
   /**
-   * 获取可安装的 PECL 扩展列表（从 pecl.php.net 搜索）
+   * 获取可安装的 PECL 扩展列表（从 pecl.php.net 和 windows.php.net 获取）
    */
   async getAvailableExtensions(
     version: string,
@@ -652,83 +654,55 @@ export class PhpManager {
         return this.getDefaultExtensionList(version);
       }
 
-      const { majorMinor, isNts } = phpInfo;
-      console.log(`PHP Info: ${majorMinor}, NTS: ${isNts}`);
-
-      // 使用 Packagist API 获取扩展列表（PIE 推荐方式）
-      // https://packagist.org/extensions
-      const keyword = searchKeyword || "";
-      const searchUrl = keyword
-        ? `https://packagist.org/search.json?q=${encodeURIComponent(
-            keyword
-          )}&type=php-ext`
-        : `https://packagist.org/search.json?type=php-ext`;
-
-      console.log(`从 Packagist 搜索扩展: ${keyword || "(全部)"}`);
-
-      let foundPackages: {
-        name: string;
-        description: string;
-        packageName: string;
-      }[] = [];
-
-      try {
-        const jsonStr = await this.fetchHtmlContent(searchUrl);
-        const data = JSON.parse(jsonStr);
-
-        if (data.results && Array.isArray(data.results)) {
-          for (const pkg of data.results) {
-            // Packagist 包名格式：vendor/package
-            const packageName = pkg.name || "";
-            // 扩展名通常是包名的最后一部分，或从 description 提取
-            let extName = packageName.split("/").pop() || "";
-            // 移除常见前缀
-            extName = extName
-              .replace(/^php[-_]?/, "")
-              .replace(/[-_]?extension$/, "");
-
-            foundPackages.push({
-              name: extName,
-              description: pkg.description || "",
-              packageName: packageName,
-            });
-          }
-        }
-        console.log(`从 Packagist 找到 ${foundPackages.length} 个扩展包`);
-      } catch (e: any) {
-        console.log(`Packagist API 请求失败: ${e.message}，尝试使用预定义列表`);
-      }
-
-      // 如果 Packagist 无结果，使用预定义的常用扩展列表
-      if (foundPackages.length === 0) {
-        foundPackages = this.getPopularExtensionsList(keyword);
-        console.log(`使用预定义扩展列表: ${foundPackages.length} 个`);
-      }
+      const { majorMinor, isNts, compiler } = phpInfo;
+      console.log(
+        `PHP Info: ${majorMinor}, NTS: ${isNts}, Compiler: ${compiler}`
+      );
 
       // 获取已安装的扩展
       const installedExts = await this.getExtensions(version);
       const installedNames = installedExts.map((e) => e.name.toLowerCase());
 
-      // 过滤已安装的扩展
-      const availablePackages = foundPackages.filter(
-        (pkg) => !installedNames.includes(pkg.name.toLowerCase())
-      );
+      // 从 PECL 统计页面爬取热门扩展列表
+      console.log(`[PECL] Fetching popular extensions from stats page...`);
+      let popularExtensions = await this.fetchPeclPopularExtensions();
 
-      // 限制数量
-      const checkPackages = availablePackages.slice(0, searchKeyword ? 50 : 20);
-
-      for (const pkg of checkPackages) {
-        extensions.push({
-          name: pkg.name,
-          version: "latest",
-          downloadUrl: "", // PIE 会自动处理
-          description: pkg.description,
-          packageName: pkg.packageName,
-        } as AvailablePeclExtension & { packageName?: string });
+      // 如果爬取失败，使用本地缓存列表
+      if (popularExtensions.length === 0) {
+        console.log(`[PECL] Using cached extension list`);
+        popularExtensions = this.getPeclExtensionsList();
       }
 
-      console.log(`找到 ${extensions.length} 个可安装的扩展`);
-      return extensions.sort((a, b) => a.name.localeCompare(b.name));
+      // 搜索过滤
+      if (searchKeyword) {
+        const keyword = searchKeyword.toLowerCase();
+        popularExtensions = popularExtensions.filter(
+          (ext) =>
+            ext.name.toLowerCase().includes(keyword) ||
+            ext.description.toLowerCase().includes(keyword)
+        );
+      }
+
+      console.log(`[PECL] Found ${popularExtensions.length} extensions`);
+
+      // 过滤已安装的扩展
+      const availableExts = popularExtensions.filter(
+        (ext) => !installedNames.includes(ext.name.toLowerCase())
+      );
+
+      // 直接返回列表，不检查 DLL（安装时再检查）
+      const limit = searchKeyword ? 50 : 30;
+      for (const ext of availableExts.slice(0, limit)) {
+        extensions.push({
+          name: ext.name,
+          version: "latest", // 安装时获取最新版本
+          downloadUrl: "", // 安装时获取下载链接
+          description: ext.description,
+        });
+      }
+
+      console.log(`[PECL] Showing ${extensions.length} extensions`);
+      return extensions;
     } catch (error: any) {
       console.error("获取可用扩展列表失败:", error);
       return this.getDefaultExtensionList(version);
@@ -736,123 +710,298 @@ export class PhpManager {
   }
 
   /**
-   * 获取常用 PHP 扩展列表（带 Packagist 包名）
-   * PIE 包名格式参考: https://packagist.org/extensions
+   * 从 PECL 统计页面爬取热门扩展列表
+   * https://pecl.php.net/package-stats.php
    */
-  private getPopularExtensionsList(
-    keyword?: string
-  ): { name: string; description: string; packageName: string }[] {
-    // PIE 兼容的扩展包名（vendor/package 格式）
-    const popularExtensions = [
-      {
-        name: "redis",
-        description: "PHP extension for Redis",
-        packageName: "phpredis/phpredis", // 正确的 PIE 包名
-      },
-      {
-        name: "mongodb",
-        description: "MongoDB driver for PHP",
-        packageName: "mongodb/mongodb", // MongoDB 官方扩展
-      },
-      {
-        name: "memcached",
-        description: "PHP extension for Memcached",
-        packageName: "php-memcached-dev/php-memcached",
-      },
-      {
-        name: "imagick",
-        description: "ImageMagick for PHP",
-        packageName: "imagick/imagick",
-      },
-      {
-        name: "xdebug",
-        description: "Debugging and profiling for PHP",
-        packageName: "xdebug/xdebug",
-      },
-      {
-        name: "swoole",
-        description: "High-performance coroutine framework",
-        packageName: "openswoole/swoole", // OpenSwoole（PIE 兼容）
-      },
-      {
-        name: "yaml",
-        description: "YAML parser and emitter",
-        packageName: "php/pecl-file_formats-yaml",
-      },
-      {
-        name: "apcu",
-        description: "APCu - APC User Cache",
-        packageName: "apcu/apcu", // 正确的 PIE 包名
-      },
-      { name: "grpc", description: "gRPC for PHP", packageName: "grpc/grpc" },
-      {
-        name: "protobuf",
-        description: "Protocol Buffers",
-        packageName: "google/protobuf",
-      },
-      {
-        name: "igbinary",
-        description: "Binary serialization",
-        packageName: "igbinary/igbinary",
-      },
-      {
-        name: "msgpack",
-        description: "MessagePack serialization",
-        packageName: "msgpack/msgpack-php",
-      },
-      {
-        name: "sodium",
-        description: "Modern cryptography library",
-        packageName: "php/pecl-crypto-sodium",
-      },
-      {
-        name: "zip",
-        description: "ZIP file support",
-        packageName: "php/pecl-file_formats-zip",
-      },
-      {
-        name: "rar",
-        description: "RAR archive support",
-        packageName: "php/pecl-file_formats-rar",
-      },
-      {
-        name: "amqp",
-        description: "AMQP messaging library",
-        packageName: "php-amqp/php-amqp",
-      },
-      {
-        name: "oauth",
-        description: "OAuth consumer extension",
-        packageName: "php/pecl-web_services-oauth",
-      },
-      {
-        name: "ssh2",
-        description: "SSH2 bindings",
-        packageName: "php/pecl-networking-ssh2",
-      },
-      {
-        name: "event",
-        description: "Event-based I/O",
-        packageName: "php/pecl-event",
-      },
-      {
-        name: "uv",
-        description: "libuv bindings",
-        packageName: "amphp/ext-uv",
-      },
-    ];
+  private async fetchPeclPopularExtensions(): Promise<
+    { name: string; description: string }[]
+  > {
+    try {
+      const url = "https://pecl.php.net/package-stats.php";
+      const html = await this.fetchHtmlContent(url);
 
-    if (!keyword) {
-      return popularExtensions;
+      if (html.length < 1000) {
+        console.log(`[PECL] Stats page too short: ${html.length}`);
+        return [];
+      }
+
+      const extensions: { name: string; description: string }[] = [];
+
+      // 匹配扩展名: <a href="/package/redis">redis</a> 或 [redis](/package/redis)
+      // HTML 格式: <a href="/package/扩展名">扩展名</a>
+      const extPattern =
+        /<a\s+href="\/package\/([a-zA-Z0-9_]+)"[^>]*>\1<\/a>/gi;
+      let match;
+
+      while ((match = extPattern.exec(html)) !== null) {
+        const name = match[1];
+        // 排除一些非扩展的链接
+        if (name && !extensions.find((e) => e.name === name)) {
+          extensions.push({
+            name: name,
+            description: this.getExtensionDescription(name),
+          });
+        }
+      }
+
+      // 备用模式: 匹配 href="/package/xxx"
+      if (extensions.length === 0) {
+        const altPattern = /href="\/package\/([a-zA-Z0-9_]+)"/gi;
+        while ((match = altPattern.exec(html)) !== null) {
+          const name = match[1];
+          if (
+            name &&
+            !extensions.find((e) => e.name === name) &&
+            !["stats", "search", "changelog"].includes(name.toLowerCase())
+          ) {
+            extensions.push({
+              name: name,
+              description: this.getExtensionDescription(name),
+            });
+          }
+        }
+      }
+
+      console.log(
+        `[PECL] Scraped ${extensions.length} extensions from stats page`
+      );
+      return extensions;
+    } catch (error: any) {
+      console.error(`[PECL] Failed to fetch stats page: ${error.message}`);
+      return [];
     }
+  }
 
-    const lowerKeyword = keyword.toLowerCase();
-    return popularExtensions.filter(
-      (ext) =>
-        ext.name.toLowerCase().includes(lowerKeyword) ||
-        ext.description.toLowerCase().includes(lowerKeyword) ||
-        ext.packageName.toLowerCase().includes(lowerKeyword)
-    );
+  /**
+   * 获取扩展描述（本地映射）
+   */
+  private getExtensionDescription(name: string): string {
+    const descriptions: Record<string, string> = {
+      imagick: "ImageMagick 图像处理",
+      xdebug: "调试和性能分析工具",
+      redis: "PHP Redis 客户端扩展",
+      apcu: "APCu 用户数据缓存",
+      yaml: "YAML 数据格式支持",
+      memcached: "Memcached 缓存客户端",
+      mongodb: "MongoDB 数据库驱动",
+      amqp: "AMQP 消息队列 (RabbitMQ)",
+      mcrypt: "Mcrypt 加密扩展",
+      igbinary: "高效二进制序列化",
+      ssh2: "SSH2 协议支持",
+      mailparse: "邮件解析扩展",
+      msgpack: "MessagePack 序列化",
+      grpc: "gRPC 远程调用",
+      rdkafka: "Kafka 客户端",
+      oauth: "OAuth 认证支持",
+      protobuf: "Protocol Buffers",
+      event: "事件驱动扩展",
+      zip: "ZIP 压缩支持",
+      xlswriter: "Excel 文件写入",
+      rar: "RAR 压缩支持",
+      swoole: "高性能异步框架",
+      uuid: "UUID 生成",
+      ds: "数据结构扩展",
+      ast: "PHP AST 抽象语法树",
+      pcov: "代码覆盖率驱动",
+      decimal: "任意精度小数",
+      ev: "libev 事件循环",
+      inotify: "文件系统监控",
+      solr: "Apache Solr 客户端",
+      htscanner: "htaccess 支持",
+      timezonedb: "时区数据库",
+      gnupg: "GnuPG 加密",
+      geoip: "GeoIP 地理定位",
+      psr: "PSR 接口",
+      parallel: "并行处理",
+      opentelemetry: "OpenTelemetry 追踪",
+      sqlsrv: "SQL Server 驱动",
+      pdo_sqlsrv: "PDO SQL Server",
+      oci8: "Oracle 数据库",
+      couchbase: "Couchbase 客户端",
+      zstd: "Zstandard 压缩",
+      brotli: "Brotli 压缩",
+      maxminddb: "MaxMind GeoIP2",
+    };
+    return descriptions[name.toLowerCase()] || `${name} extension`;
+  }
+
+  /**
+   * 获取 PECL 常用扩展列表（本地缓存，爬取失败时使用）
+   */
+  private getPeclExtensionsList(): { name: string; description: string }[] {
+    // 基于 PECL 下载统计的热门扩展列表
+    return [
+      { name: "imagick", description: "ImageMagick 图像处理" },
+      { name: "xdebug", description: "调试和性能分析工具" },
+      { name: "redis", description: "PHP Redis 客户端扩展" },
+      { name: "apcu", description: "APCu 用户数据缓存" },
+      { name: "yaml", description: "YAML 数据格式支持" },
+      { name: "memcached", description: "Memcached 缓存客户端" },
+      { name: "mongodb", description: "MongoDB 数据库驱动" },
+      { name: "amqp", description: "AMQP 消息队列 (RabbitMQ)" },
+      { name: "mcrypt", description: "Mcrypt 加密扩展" },
+      { name: "igbinary", description: "高效二进制序列化" },
+      { name: "ssh2", description: "SSH2 协议支持" },
+      { name: "mailparse", description: "邮件解析扩展" },
+      { name: "msgpack", description: "MessagePack 序列化" },
+      { name: "grpc", description: "gRPC 远程调用" },
+      { name: "rdkafka", description: "Kafka 客户端" },
+      { name: "oauth", description: "OAuth 认证支持" },
+      { name: "protobuf", description: "Protocol Buffers" },
+      { name: "event", description: "事件驱动扩展" },
+      { name: "zip", description: "ZIP 压缩支持" },
+      { name: "xlswriter", description: "Excel 文件写入" },
+      { name: "pcov", description: "代码覆盖率驱动" },
+      { name: "swoole", description: "高性能异步框架" },
+      { name: "uuid", description: "UUID 生成" },
+      { name: "ds", description: "数据结构扩展" },
+      { name: "ast", description: "PHP AST 抽象语法树" },
+      { name: "rar", description: "RAR 压缩支持" },
+      { name: "decimal", description: "任意精度小数" },
+      { name: "ev", description: "libev 事件循环" },
+      { name: "inotify", description: "文件系统监控" },
+      { name: "solr", description: "Apache Solr 客户端" },
+    ];
+  }
+
+  /**
+   * 从 PECL 获取扩展的 DLL 下载信息
+   * 1. 爬取详情页 https://pecl.php.net/package/{ext} 获取最新版本
+   * 2. 爬取 Windows 页 https://pecl.php.net/package/{ext}/{version}/windows 获取 DLL 链接
+   */
+  private async fetchPeclDllInfo(
+    extName: string,
+    phpVersion: string,
+    tsType: string,
+    compiler: string
+  ): Promise<{
+    version?: string;
+    downloadUrl?: string;
+    availablePhpVersions?: string[];
+  }> {
+    try {
+      // 1. 获取详情页，提取最新版本号
+      const packageUrl = `https://pecl.php.net/package/${extName}`;
+      console.log(`[PECL DLL] Fetching: ${packageUrl}`);
+      let html = await this.fetchHtmlContent(packageUrl);
+      html = this.decodeHtmlEntities(html);
+
+      // 提取有 Windows DLL 的版本号
+      // 格式: <a href="/package/redis/6.3.0/windows">DLL</a>
+      const windowsVersions: string[] = [];
+      const dllPattern = new RegExp(
+        `href=["']/package/${extName}/([\\d.]+(?:RC\\d+|beta\\d*|alpha\\d*)?)/windows["']`,
+        "gi"
+      );
+      let match;
+      while ((match = dllPattern.exec(html)) !== null) {
+        if (!windowsVersions.includes(match[1])) {
+          windowsVersions.push(match[1]);
+        }
+      }
+
+      console.log(
+        `[PECL DLL] ${extName}: versions with DLL: ${windowsVersions
+          .slice(0, 5)
+          .join(", ")}`
+      );
+
+      if (windowsVersions.length === 0) {
+        // 尝试获取任何版本
+        const anyVersionPattern = new RegExp(
+          `href=["']/package/${extName}/([\\d.]+(?:RC\\d+|beta\\d*|alpha\\d*)?)["']`,
+          "gi"
+        );
+        while ((match = anyVersionPattern.exec(html)) !== null) {
+          if (!windowsVersions.includes(match[1])) {
+            windowsVersions.push(match[1]);
+          }
+        }
+      }
+
+      if (windowsVersions.length === 0) {
+        console.log(`[PECL DLL] ${extName}: no versions found`);
+        return {};
+      }
+
+      // 选择最新的稳定版本
+      const stableVersions = windowsVersions.filter(
+        (v) => !/RC|beta|alpha/i.test(v)
+      );
+      const latestVersion = stableVersions[0] || windowsVersions[0];
+      console.log(`[PECL DLL] ${extName}: selected version ${latestVersion}`);
+
+      // 2. 获取 Windows DLL 页面
+      const windowsUrl = `https://pecl.php.net/package/${extName}/${latestVersion}/windows`;
+      console.log(`[PECL DLL] Fetching: ${windowsUrl}`);
+      let windowsHtml = await this.fetchHtmlContent(windowsUrl);
+      windowsHtml = this.decodeHtmlEntities(windowsHtml);
+
+      // 提取所有 .zip 下载链接
+      const zipLinks: string[] = [];
+      const zipPattern = /href=["'](https?:\/\/[^"']*\.zip)["']/gi;
+      while ((match = zipPattern.exec(windowsHtml)) !== null) {
+        zipLinks.push(match[1]);
+      }
+
+      console.log(
+        `[PECL DLL] ${extName}: found ${zipLinks.length} download links`
+      );
+
+      // 查找匹配当前 PHP 版本的 DLL
+      const compilers = [compiler, "vs17", "vs16", "vc15"];
+      let matchedUrl: string | null = null;
+
+      for (const url of zipLinks) {
+        const decodedUrl = decodeURIComponent(url).toLowerCase();
+
+        for (const comp of compilers) {
+          // 格式: php_redis-6.3.0-8.4-nts-vs17-x64.zip
+          if (
+            decodedUrl.includes(`-${phpVersion}-${tsType}-${comp}-x64.zip`) ||
+            decodedUrl.includes(`-${phpVersion}-${tsType}-${comp}-x86.zip`)
+          ) {
+            matchedUrl = url;
+            console.log(`[PECL DLL] ${extName}: matched DLL ${url}`);
+            break;
+          }
+        }
+        if (matchedUrl) break;
+      }
+
+      if (matchedUrl) {
+        return {
+          version: latestVersion,
+          downloadUrl: matchedUrl,
+        };
+      }
+
+      // 提取可用的 PHP 版本列表
+      const availablePhpVersions: string[] = [];
+      for (const url of zipLinks) {
+        const versionMatch = url.match(/-(\d+\.\d+)-(nts|ts)-/i);
+        if (versionMatch) {
+          const phpVer = `${versionMatch[1]}-${versionMatch[2]}`;
+          if (!availablePhpVersions.includes(phpVer)) {
+            availablePhpVersions.push(phpVer);
+          }
+        }
+      }
+
+      console.log(
+        `[PECL DLL] ${extName}: available PHP versions: ${availablePhpVersions.join(
+          ", "
+        )}`
+      );
+
+      return {
+        version: latestVersion,
+        availablePhpVersions: availablePhpVersions.sort().reverse(),
+      };
+    } catch (error: any) {
+      console.error(`[PECL DLL] ${extName}: error - ${error.message}`);
+      return {};
+    }
   }
 
   /**
@@ -866,327 +1015,329 @@ export class PhpManager {
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&hyphen;/g, "-")
+      .replace(/&lowbar;/g, "_")
       .replace(/&#(\d+);/g, (_, code) =>
         String.fromCharCode(parseInt(code, 10))
+      )
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, code) =>
+        String.fromCharCode(parseInt(code, 16))
       )
       .replace(/&nbsp;/g, " ");
   }
 
   /**
-   * 从 PECL 详情页获取扩展信息
-   * 流程：
-   * 1. 访问 https://pecl.php.net/package/扩展名 获取最新稳定版本
-   * 2. 访问 https://pecl.php.net/package/扩展名/版本/windows 获取 Windows DLL 链接
+   * 直接检查 PECL DLL URL 是否存在
+   * 下载链接格式: https://downloads.php.net/~windows/pecl/releases/{ext}/{version}/php_{ext}-{version}-{php}-{ts}-{compiler}-x64.zip
    */
-  private async getExtensionFromPecl(
+  private async findPeclDllUrl(
+    extName: string,
+    extVersion: string,
+    phpVersion: string,
+    tsType: string,
+    compiler: string
+  ): Promise<string | null> {
+    // 尝试多种编译器版本
+    const compilers = [compiler, "vs17", "vs16", "vc15"];
+    const architectures = ["x64", "x86"];
+
+    for (const comp of compilers) {
+      for (const arch of architectures) {
+        const url = `https://downloads.php.net/~windows/pecl/releases/${extName}/${extVersion}/php_${extName}-${extVersion}-${phpVersion}-${tsType}-${comp}-${arch}.zip`;
+
+        try {
+          const exists = await this.checkUrlExists(url);
+          if (exists) {
+            console.log(`[PECL] Found DLL: ${url}`);
+            return url;
+          }
+        } catch (e) {
+          // URL doesn't exist, try next
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * 从 PECL 获取扩展信息（包含支持的 PHP 版本）
+   */
+  private async getExtensionFromPeclWithInfo(
     extName: string,
     phpInfo: { majorMinor: string; isNts: boolean; compiler: string }
-  ): Promise<AvailablePeclExtension | null> {
-    const { majorMinor, isNts } = phpInfo;
+  ): Promise<{
+    available: boolean;
+    extension?: AvailablePeclExtension;
+    supportedVersions?: string[];
+    latestVersion?: string;
+  }> {
+    const result = await this.getExtensionFromPeclDetailed(extName, phpInfo);
+    return result;
+  }
+
+  /**
+   * Get extension info from PECL
+   * Check https://pecl.php.net/package/{ext}/{ver}/windows to determine if Windows DLL exists
+   */
+  private async getExtensionFromPeclDetailed(
+    extName: string,
+    phpInfo: { majorMinor: string; isNts: boolean; compiler: string }
+  ): Promise<{
+    available: boolean;
+    extension?: AvailablePeclExtension;
+    supportedVersions?: string[];
+    latestVersion?: string;
+  }> {
+    const { majorMinor, isNts, compiler } = phpInfo;
+    const tsType = isNts ? "nts" : "ts";
 
     try {
-      // 1. 获取扩展详情页，找到最新稳定版本
+      // 1. Get package page and extract versions
       const packageUrl = `https://pecl.php.net/package/${extName}`;
-      console.log(`获取扩展详情: ${packageUrl}`);
+      console.log(`[PECL] ${extName}: fetching ${packageUrl}`);
       let packageHtml = await this.fetchHtmlContent(packageUrl);
 
-      console.log(`获取到 HTML 长度: ${packageHtml.length}`);
-      if (packageHtml.length < 1000) {
-        console.log(
-          `HTML 内容过短，可能获取失败: ${packageHtml.substring(0, 500)}`
-        );
+      console.log(`[PECL] ${extName}: HTML length ${packageHtml.length}`);
+
+      if (packageHtml.length < 500) {
+        console.log(`[PECL] ${extName}: page too short, may not exist`);
+        return { available: false };
       }
 
-      // 解码 HTML 实体（如 &period; -> . , &sol; -> /）
+      // Check if HTML contains encoded entities before decoding
+      const hasEncodedPeriod = packageHtml.includes("&period;");
+      const hasEncodedSol = packageHtml.includes("&sol;");
+      console.log(
+        `[PECL] ${extName}: hasEncodedPeriod=${hasEncodedPeriod}, hasEncodedSol=${hasEncodedSol}`
+      );
+
+      // Decode HTML entities (PECL uses &period; for . and &sol; for /)
       packageHtml = this.decodeHtmlEntities(packageHtml);
-      console.log(`解码后 HTML 长度: ${packageHtml.length}`);
 
-      // 解析版本列表，找到最新的稳定版本（state=stable 且有 DLL 链接）
-      // 分步解析：
-      // 1. 找到所有表格行 <tr>...</tr>
-      // 2. 检查每行是否包含 DLL 链接和版本信息
+      // Debug: Check if version links exist after decoding
+      const hasPackageLink = packageHtml.includes(`/package/${extName}/`);
+      const hasWindowsLink = packageHtml.includes("/windows");
+      console.log(
+        `[PECL] ${extName}: hasPackageLink=${hasPackageLink}, hasWindowsLink=${hasWindowsLink}`
+      );
 
-      let latestStableVersion: string | null = null;
-      let latestBetaVersion: string | null = null;
+      // Extract version numbers from page - multiple patterns for robustness
+      const allVersions: string[] = [];
+      let match;
 
-      // 方法1：直接搜索带 DLL 链接的版本
-      // 格式: /package/xxx/VERSION/windows">...DLL
-      const dllVersionRegex = /\/package\/[^/]+\/([\d.]+(?:RC\d+)?)\/windows/gi;
+      // Pattern 1: Match /package/extname/x.y.z in href
+      // href="/package/amqp/2.2.0" or href='/package/amqp/2.2.0'
+      const escapedExtName = extName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const versionPattern1 = new RegExp(
+        `href=["']/package/${escapedExtName}/([\\d]+\\.[\\d]+(?:\\.[\\d]+)?(?:RC\\d+|beta\\d*|alpha\\d*)?)["'>]`,
+        "gi"
+      );
+      while ((match = versionPattern1.exec(packageHtml)) !== null) {
+        const ver = match[1];
+        if (!allVersions.includes(ver)) {
+          allVersions.push(ver);
+          console.log(`[PECL] ${extName}: found version ${ver} (pattern1)`);
+        }
+      }
+
+      // Pattern 2: Match version numbers in table cells >x.y.z</a>
+      const versionPattern2 =
+        />(\d+\.\d+(?:\.\d+)?(?:RC\d+|beta\d*|alpha\d*)?)<\/a>/gi;
+      while ((match = versionPattern2.exec(packageHtml)) !== null) {
+        const ver = match[1];
+        if (!allVersions.includes(ver) && /^\d+\.\d+/.test(ver)) {
+          allVersions.push(ver);
+          console.log(`[PECL] ${extName}: found version ${ver} (pattern2)`);
+        }
+      }
+
+      // Pattern 3: Match /windows links to get versions with DLL
+      const versionPattern3 = new RegExp(
+        `href=["']/package/${escapedExtName}/([\\d]+\\.[\\d]+(?:\\.[\\d]+)?(?:RC\\d+|beta\\d*|alpha\\d*)?)/windows`,
+        "gi"
+      );
+      while ((match = versionPattern3.exec(packageHtml)) !== null) {
+        const ver = match[1];
+        if (!allVersions.includes(ver)) {
+          allVersions.push(ver);
+          console.log(
+            `[PECL] ${extName}: found version ${ver} with DLL (pattern3)`
+          );
+        }
+      }
+
+      // Sort versions descending, prefer stable
+      const uniqueVersions = [...new Set(allVersions)].sort((a, b) => {
+        const aParts = a
+          .replace(/RC.*|beta.*|alpha.*/i, "")
+          .split(".")
+          .map(Number);
+        const bParts = b
+          .replace(/RC.*|beta.*|alpha.*/i, "")
+          .split(".")
+          .map(Number);
+        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+          const diff = (bParts[i] || 0) - (aParts[i] || 0);
+          if (diff !== 0) return diff;
+        }
+        const aIsStable = !/RC|beta|alpha/i.test(a);
+        const bIsStable = !/RC|beta|alpha/i.test(b);
+        if (aIsStable !== bIsStable) return aIsStable ? -1 : 1;
+        return 0;
+      });
+
+      console.log(
+        `[PECL] ${extName}: found versions [${uniqueVersions
+          .slice(0, 5)
+          .join(", ")}]`
+      );
+
+      if (uniqueVersions.length === 0) {
+        console.log(`[PECL] ${extName}: no versions found`);
+        return { available: false };
+      }
+
+      // 2. Check /windows page for each version (use fetchHtmlContent directly)
       const versionsWithDll: string[] = [];
-      let dllMatch;
 
-      // 调试：打印部分 HTML 内容查看格式
-      const windowsLinkIndex = packageHtml.indexOf("/windows");
-      if (windowsLinkIndex > 0) {
-        console.log(
-          `HTML 样本 (解码后): ${packageHtml.substring(
-            Math.max(0, windowsLinkIndex - 100),
-            windowsLinkIndex + 50
-          )}`
-        );
-      } else {
-        // 可能解码不完整，检查是否还有编码的 windows
-        console.log("解码后未找到 /windows，检查原始 HTML...");
-        // 尝试多种可能的编码形式
-        const patterns = ['windows"', "windows<", "DLL</a>", "/windows"];
-        for (const pattern of patterns) {
-          const idx = packageHtml.indexOf(pattern);
-          if (idx > 0) {
-            console.log(
-              `找到 "${pattern}" 在位置 ${idx}: ${packageHtml.substring(
-                Math.max(0, idx - 80),
-                idx + 40
-              )}`
-            );
-            break;
-          }
-        }
-      }
+      for (const ver of uniqueVersions.slice(0, 3)) {
+        const windowsPageUrl = `https://pecl.php.net/package/${extName}/${ver}/windows`;
+        console.log(`[PECL] ${extName}: checking ${windowsPageUrl}`);
 
-      while ((dllMatch = dllVersionRegex.exec(packageHtml)) !== null) {
-        const ver = dllMatch[1];
-        if (!versionsWithDll.includes(ver)) {
-          versionsWithDll.push(ver);
-          console.log(`找到带 DLL 的版本: ${ver}`);
-        }
-      }
-
-      // 对每个有 DLL 的版本，检查其状态
-      for (const ver of versionsWithDll) {
-        // 在 HTML 中找到这个版本对应的行，检查是 stable 还是 beta
-        // 格式: >VERSION</a>...stable 或 >VERSION</a>...beta
-        const stateRegex = new RegExp(
-          `>${ver.replace(
-            /\./g,
-            "\\."
-          )}</a>[\\s\\S]*?<td[^>]*>\\s*(stable|beta|alpha)\\s*</td>`,
-          "i"
-        );
-        const stateMatch = stateRegex.exec(packageHtml);
-
-        if (stateMatch) {
-          const state = stateMatch[1].toLowerCase();
-          console.log(`版本 ${ver} 状态: ${state}`);
-
-          if (state === "stable" && !latestStableVersion) {
-            latestStableVersion = ver;
-            break; // 找到第一个稳定版本就停止
-          } else if (
-            (state === "beta" || state === "alpha") &&
-            !latestBetaVersion
+        try {
+          const windowsHtml = await this.fetchHtmlContent(windowsPageUrl);
+          // Check if page contains DLL download links (downloads.php.net or .zip)
+          if (
+            windowsHtml.length > 1000 &&
+            (windowsHtml.includes("downloads.php.net") ||
+              windowsHtml.includes(".zip"))
           ) {
-            latestBetaVersion = ver;
+            versionsWithDll.push(ver);
+            console.log(`[PECL] ${extName} v${ver}: Windows DLL found!`);
+            break;
+          } else {
+            console.log(
+              `[PECL] ${extName} v${ver}: no DLL links (len=${windowsHtml.length})`
+            );
           }
+        } catch (e: any) {
+          console.log(`[PECL] ${extName} v${ver}: fetch failed - ${e.message}`);
         }
       }
 
-      let targetVersion = latestStableVersion || latestBetaVersion;
-
-      // 如果正则匹配失败，直接使用第一个有 DLL 的版本
-      if (!targetVersion && versionsWithDll.length > 0) {
-        targetVersion = versionsWithDll[0];
-        console.log(`未能确定状态，使用第一个有 DLL 的版本: ${targetVersion}`);
+      if (versionsWithDll.length === 0) {
+        console.log(`[PECL] ${extName}: no Windows DLL available`);
+        return { available: false };
       }
 
+      // Prefer stable version
+      let targetVersion = versionsWithDll.find(
+        (v) => !/RC|beta|alpha/i.test(v)
+      );
       if (!targetVersion) {
-        console.log(`扩展 ${extName} 没有 Windows DLL`);
-        return null;
+        targetVersion = versionsWithDll[0];
       }
 
-      console.log(`扩展 ${extName} 最新版本: ${targetVersion}`);
+      console.log(`[PECL] ${extName}: selected version ${targetVersion}`);
 
-      // 2. 获取 Windows DLL 页面
+      // 3. Get Windows DLL page and find download links
       const windowsUrl = `https://pecl.php.net/package/${extName}/${targetVersion}/windows`;
-      console.log(`获取 Windows DLL 列表: ${windowsUrl}`);
-      const windowsHtml = await this.fetchHtmlContent(windowsUrl);
+      console.log(`[PECL] ${extName}: fetching DLL list from ${windowsUrl}`);
+      let windowsHtml = await this.fetchHtmlContent(windowsUrl);
+      windowsHtml = this.decodeHtmlEntities(windowsHtml);
 
-      // 3. 查找匹配当前 PHP 版本的 DLL 链接
-      // 实际 URL 格式：https://downloads.php.net/~windows/pecl/releases/redis/6.3.0/php_redis-6.3.0-8.3-nts-vs16-x64.zip
-      // 注意：URL 中的下划线可能被编码为 %5F，如 php%5Fredis
-      // 链接文本有换行和大量空格
-
-      const tsType = isNts ? "nts" : "ts";
-
-      // 提取所有 pecl releases 的 zip 链接
-      const allLinksRegex =
-        /<a\s+href="(https?:\/\/[^"]*pecl\/releases\/[^"]*\.zip)"/gi;
+      // Extract all .zip download links
+      const downloadLinkRegex = /href=["'](https?:\/\/[^"']*\.zip)["']/gi;
       const allLinks: string[] = [];
-      let linkMatch;
-      while ((linkMatch = allLinksRegex.exec(windowsHtml)) !== null) {
-        allLinks.push(linkMatch[1]);
+      while ((match = downloadLinkRegex.exec(windowsHtml)) !== null) {
+        allLinks.push(match[1]);
       }
 
-      console.log(`找到 ${allLinks.length} 个 PECL DLL 链接`);
+      console.log(`[PECL] ${extName}: found ${allLinks.length} download links`);
 
-      // 解码 URL 并查找匹配的版本
-      // 优先级：x64 > x86
+      // Find matching DLL for current PHP version
+      // Format: php_redis-6.3.0-8.4-nts-vs17-x64.zip
       let matchedUrl: string | null = null;
+      const compilers = [compiler, "vs17", "vs16", "vc15"];
 
       for (const url of allLinks) {
-        // 解码 URL（%5F -> _）
         const decodedUrl = decodeURIComponent(url).toLowerCase();
 
-        // 检查是否匹配 PHP 版本和 NTS/TS
-        // 格式: -8.3-nts- 或 -8.3-ts-
-        const versionPattern = `-${majorMinor}-${tsType}-`;
-
-        if (decodedUrl.includes(versionPattern)) {
-          // 优先选择 x64
-          if (decodedUrl.includes("x64")) {
+        // Check PHP version and thread safety
+        for (const comp of compilers) {
+          const pattern = `-${majorMinor}-${tsType}-${comp}-x64.zip`;
+          if (decodedUrl.includes(pattern)) {
             matchedUrl = url;
-            console.log(`匹配到 x64: ${url}`);
+            console.log(`[PECL] ${extName}: matched DLL ${url}`);
             break;
-          } else if (!matchedUrl && decodedUrl.includes("x86")) {
-            matchedUrl = url;
-            console.log(`匹配到 x86: ${url}`);
-            // 继续查找，看有没有 x64
           }
         }
+        if (matchedUrl) break;
+
+        // Fallback: x86 version
+        for (const comp of compilers) {
+          const pattern = `-${majorMinor}-${tsType}-${comp}-x86.zip`;
+          if (decodedUrl.includes(pattern)) {
+            matchedUrl = url;
+            console.log(`[PECL] ${extName}: matched x86 DLL ${url}`);
+            break;
+          }
+        }
+        if (matchedUrl) break;
       }
 
       if (matchedUrl) {
-        console.log(`找到 ${extName} ${targetVersion} 的 DLL: ${matchedUrl}`);
-
         return {
-          name: extName,
-          version: targetVersion,
-          downloadUrl: matchedUrl,
-          description: await this.getExtensionDescription(extName),
+          available: true,
+          extension: {
+            name: extName,
+            version: targetVersion,
+            downloadUrl: matchedUrl,
+            description: await this.getExtensionDescription(extName),
+          },
+          latestVersion: targetVersion,
         };
       }
 
+      // Extract available PHP versions from download links
+      const availablePhpVersions: string[] = [];
+      for (const url of allLinks) {
+        const versionMatch = url.match(/-(\d+\.\d+)-(nts|ts)-/i);
+        if (versionMatch) {
+          const phpVer = `${versionMatch[1]}-${versionMatch[2]}`;
+          if (!availablePhpVersions.includes(phpVer)) {
+            availablePhpVersions.push(phpVer);
+          }
+        }
+      }
+
+      // Sort by version descending
+      availablePhpVersions.sort((a, b) => {
+        const aVer = parseFloat(a.split("-")[0]);
+        const bVer = parseFloat(b.split("-")[0]);
+        return bVer - aVer;
+      });
+
       console.log(
-        `扩展 ${extName} 没有适用于 PHP ${majorMinor} ${
-          isNts ? "NTS" : "TS"
-        } 的 DLL`
+        `[PECL] ${extName} v${targetVersion}: available PHP versions [${availablePhpVersions.join(
+          ", "
+        )}]`
       );
-      console.log(`可用链接: ${allLinks.slice(0, 5).join(", ")}...`);
-      return null;
+      console.log(
+        `[PECL] ${extName}: current PHP ${majorMinor}-${tsType} not matched`
+      );
+
+      return {
+        available: false,
+        supportedVersions: availablePhpVersions,
+        latestVersion: targetVersion,
+      };
     } catch (error: any) {
-      console.error(`获取扩展 ${extName} 失败:`, error.message);
-      return null;
+      console.error(`[PECL] ${extName}: error - ${error.message}`);
+      return { available: false };
     }
-  }
-
-  /**
-   * 从 windows.php.net 获取扩展列表（备用方法）
-   */
-  private async getExtensionsFromWindowsPhp(
-    version: string,
-    phpInfo: { majorMinor: string; isNts: boolean; compiler: string },
-    searchKeyword?: string
-  ): Promise<AvailablePeclExtension[]> {
-    const extensions: AvailablePeclExtension[] = [];
-    const { majorMinor, isNts, compiler } = phpInfo;
-
-    try {
-      const peclUrl = "https://windows.php.net/downloads/pecl/releases/";
-      const html = await this.fetchHtmlContent(peclUrl);
-
-      // 解析扩展目录
-      const extDirRegex = /<a href="([a-zA-Z0-9_-]+)\/">/g;
-      let match;
-      const extNames: string[] = [];
-
-      while ((match = extDirRegex.exec(html)) !== null) {
-        const extName = match[1];
-        if (extName && !extName.startsWith(".") && extName !== "snaps") {
-          extNames.push(extName);
-        }
-      }
-
-      // 获取已安装的扩展
-      const installedExts = await this.getExtensions(version);
-      const installedNames = installedExts.map((e) => e.name.toLowerCase());
-
-      // 过滤搜索关键词
-      let filteredNames = extNames;
-      if (searchKeyword) {
-        const keyword = searchKeyword.toLowerCase();
-        filteredNames = extNames.filter((name) =>
-          name.toLowerCase().includes(keyword)
-        );
-      }
-
-      // 限制检查数量
-      const checkNames = filteredNames.slice(0, searchKeyword ? 100 : 30);
-
-      for (const extName of checkNames) {
-        if (installedNames.includes(extName.toLowerCase())) continue;
-
-        try {
-          const extUrl = `${peclUrl}${extName}/`;
-          const extHtml = await this.fetchHtmlContent(extUrl);
-
-          const versionDirRegex = /<a href="([\d.]+)\/">/g;
-          const versions: string[] = [];
-          let vMatch;
-
-          while ((vMatch = versionDirRegex.exec(extHtml)) !== null) {
-            versions.push(vMatch[1]);
-          }
-
-          if (versions.length > 0) {
-            versions.sort((a, b) =>
-              b.localeCompare(a, undefined, { numeric: true })
-            );
-            const latestVersion = versions[0];
-
-            const tsType = isNts ? "nts" : "ts";
-            const dllPattern = `php_${extName}-${latestVersion}-${majorMinor}-${tsType}-${compiler}-x64.zip`;
-            const dllUrl = `${extUrl}${latestVersion}/${dllPattern}`;
-
-            const exists = await this.checkUrlExists(dllUrl);
-
-            if (exists) {
-              extensions.push({
-                name: extName,
-                version: latestVersion,
-                downloadUrl: dllUrl,
-              });
-            }
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-
-      return extensions.sort((a, b) => a.name.localeCompare(b.name));
-    } catch (error) {
-      console.error("从 windows.php.net 获取扩展失败:", error);
-      return this.getDefaultExtensionList(version);
-    }
-  }
-
-  /**
-   * 获取扩展描述（简化版）
-   */
-  private async getExtensionDescription(
-    extName: string
-  ): Promise<string | undefined> {
-    const descriptions: Record<string, string> = {
-      redis: "PHP Redis 客户端扩展",
-      memcached: "Memcached 缓存客户端",
-      mongodb: "MongoDB 数据库驱动",
-      imagick: "ImageMagick 图像处理",
-      xdebug: "调试和性能分析工具",
-      apcu: "用户数据缓存",
-      yaml: "YAML 数据格式支持",
-      swoole: "高性能异步网络框架",
-      igbinary: "高效二进制序列化",
-      ssh2: "SSH2 协议支持",
-      grpc: "gRPC 远程调用支持",
-      protobuf: "Protocol Buffers 支持",
-      rar: "RAR 压缩文件支持",
-      zip: "ZIP 压缩文件支持",
-      oauth: "OAuth 认证支持",
-      mailparse: "邮件解析扩展",
-      uuid: "UUID 生成支持",
-      xlswriter: "Excel 文件写入",
-      event: "事件驱动扩展",
-      ev: "libev 事件循环",
-    };
-    return descriptions[extName.toLowerCase()];
   }
 
   /**
@@ -1225,25 +1376,27 @@ export class PhpManager {
       extNameMapping[extName.toLowerCase()] || extName.toLowerCase();
 
     try {
-      // 先获取最新版本
+      // Get latest version from PECL
       const packageUrl = `https://pecl.php.net/package/${peclExtName}`;
-      console.log(`从 PECL 获取 ${peclExtName} 版本列表: ${packageUrl}`);
+      console.log(`[PECL URL] ${peclExtName}: fetching ${packageUrl}`);
       let html = await this.fetchHtmlContent(packageUrl);
 
-      console.log(`获取到 HTML 长度: ${html.length}`);
+      console.log(`[PECL URL] ${peclExtName}: HTML length ${html.length}`);
 
-      // 解码 HTML 实体
       html = this.decodeHtmlEntities(html);
 
-      // 查找有 DLL 的版本 - 格式: /package/redis/6.3.0/windows
+      // Find versions with DLL - format: /package/redis/6.3.0/windows
       const dllVersionRegex = /\/package\/[^\/]+\/([\d.]+(?:RC\d+)?)\/windows/g;
       const matches = html.match(dllVersionRegex);
 
-      console.log(`找到 DLL 链接: ${matches ? matches.length : 0} 个`);
+      console.log(
+        `[PECL URL] ${peclExtName}: found ${
+          matches ? matches.length : 0
+        } DLL links`
+      );
 
       let latestVersion: string | null = null;
       if (matches && matches.length > 0) {
-        // 从第一个匹配中提取版本号
         const versionMatch = matches[0].match(/\/([\d.]+(?:RC\d+)?)\/windows/);
         if (versionMatch) {
           latestVersion = versionMatch[1];
@@ -1251,45 +1404,45 @@ export class PhpManager {
       }
 
       if (!latestVersion) {
-        console.log(`未找到 ${peclExtName} 的 Windows DLL 版本`);
-        // 尝试直接用最新版本号
+        console.log(`[PECL URL] ${peclExtName}: no Windows DLL version found`);
         const anyVersionMatch = html.match(/\/package\/[^\/]+\/([\d.]+)["'>]/);
         if (anyVersionMatch) {
           latestVersion = anyVersionMatch[1];
-          console.log(`尝试使用版本: ${latestVersion}`);
+          console.log(
+            `[PECL URL] ${peclExtName}: trying version ${latestVersion}`
+          );
         } else {
           return null;
         }
       }
 
-      console.log(`找到 ${peclExtName} 版本: ${latestVersion}`);
+      console.log(`[PECL URL] ${peclExtName}: found version ${latestVersion}`);
 
-      // 构建下载链接
-      // 格式: https://downloads.php.net/~windows/pecl/releases/redis/6.3.0/php_redis-6.3.0-8.4-nts-vs17-x64.zip
+      // Build download URL
       const possibleUrls = [
         `https://downloads.php.net/~windows/pecl/releases/${peclExtName}/${latestVersion}/php_${peclExtName}-${latestVersion}-${majorMinor}-${tsType}-${compiler}-x64.zip`,
         `https://downloads.php.net/~windows/pecl/releases/${peclExtName}/${latestVersion}/php_${peclExtName}-${latestVersion}-${majorMinor}-${tsType}-${compiler}-x86.zip`,
-        // 备选格式（不同编译器版本）
         `https://downloads.php.net/~windows/pecl/releases/${peclExtName}/${latestVersion}/php_${peclExtName}-${latestVersion}-${majorMinor}-${tsType}-vs16-x64.zip`,
         `https://downloads.php.net/~windows/pecl/releases/${peclExtName}/${latestVersion}/php_${peclExtName}-${latestVersion}-${majorMinor}-${tsType}-vc15-x64.zip`,
       ];
 
-      // 检查哪个 URL 有效
+      // Check which URL exists
       for (const url of possibleUrls) {
-        console.log(`检查 URL: ${url}`);
+        console.log(`[PECL URL] checking: ${url}`);
         const exists = await this.checkUrlExists(url);
         if (exists) {
-          console.log(`找到有效的 PECL DLL: ${url}`);
+          console.log(`[PECL URL] ${peclExtName}: found valid DLL ${url}`);
           return url;
         }
       }
 
-      // 如果精确匹配失败，尝试从 Windows 页面解析
+      // Try parsing from Windows page
       const windowsUrl = `https://pecl.php.net/package/${peclExtName}/${latestVersion}/windows`;
-      console.log(`从 Windows 页面查找: ${windowsUrl}`);
+      console.log(
+        `[PECL URL] ${peclExtName}: checking Windows page ${windowsUrl}`
+      );
       const windowsHtml = await this.fetchHtmlContent(windowsUrl);
 
-      // 查找匹配的 DLL 链接
       const allLinksRegex =
         /<a\s+href="(https?:\/\/[^"]*pecl\/releases\/[^"]*\.zip)"/gi;
       const allLinks: string[] = [];
@@ -1304,16 +1457,20 @@ export class PhpManager {
 
         if (decodedUrl.includes(versionPattern)) {
           if (decodedUrl.includes("x64")) {
-            console.log(`从页面找到匹配的 DLL: ${url}`);
+            console.log(
+              `[PECL URL] ${peclExtName}: found matching DLL from page ${url}`
+            );
             return url;
           }
         }
       }
 
-      console.log(`未能为 ${peclExtName} 构建有效的 PECL 下载链接`);
+      console.log(
+        `[PECL URL] ${peclExtName}: unable to build valid download URL`
+      );
       return null;
     } catch (error: any) {
-      console.error(`构建 PECL 下载链接失败: ${error.message}`);
+      console.error(`[PECL URL] ${peclExtName}: error - ${error.message}`);
       return null;
     }
   }
@@ -1539,7 +1696,7 @@ export class PhpManager {
   }
 
   /**
-   * 安装扩展（使用 PIE）
+   * 安装扩展（从 PECL 下载 DLL）
    */
   async installExtension(
     version: string,
@@ -1550,6 +1707,7 @@ export class PhpManager {
     try {
       const phpPath = this.configStore.getPhpPath(version);
       const extDir = join(phpPath, "ext");
+      const tempPath = this.configStore.getTempPath();
 
       if (!existsSync(extDir)) {
         return { success: false, message: "PHP 扩展目录不存在" };
@@ -1561,19 +1719,161 @@ export class PhpManager {
         return { success: false, message: "无法获取 PHP 版本信息" };
       }
 
-      // 使用 PIE 安装
-      console.log(`使用 PIE 安装扩展 ${extName}...`);
-      const pieResult = await this.installWithPie(
-        phpPath,
-        extName,
-        packageName
-      );
+      // 确定下载 URL
+      let finalDownloadUrl = downloadUrl;
+      const { majorMinor, isNts, compiler } = phpInfo;
+      const tsType = isNts ? "nts" : "ts";
 
-      return pieResult;
+      if (!finalDownloadUrl) {
+        // 从 PECL 获取最新版本和下载链接
+        console.log(`[Install] ${extName}: fetching from PECL...`);
+        const dllInfo = await this.fetchPeclDllInfo(
+          extName,
+          majorMinor,
+          tsType,
+          compiler
+        );
+
+        if (dllInfo.downloadUrl) {
+          finalDownloadUrl = dllInfo.downloadUrl;
+          console.log(
+            `[Install] ${extName}: found v${dllInfo.version} for PHP ${majorMinor}`
+          );
+        } else {
+          const supportedInfo = dllInfo.availablePhpVersions?.length
+            ? `，支持的 PHP 版本: ${dllInfo.availablePhpVersions
+                .slice(0, 5)
+                .join(", ")}`
+            : "";
+          return {
+            success: false,
+            message: `未找到适用于 PHP ${majorMinor} ${tsType.toUpperCase()} 的 ${extName} 扩展 DLL${supportedInfo}`,
+          };
+        }
+      }
+
+      // 备用检查
+      if (!finalDownloadUrl) {
+        const peclResult = await this.getExtensionFromPeclWithInfo(
+          extName,
+          phpInfo
+        );
+        if (peclResult.available && peclResult.extension?.downloadUrl) {
+          finalDownloadUrl = peclResult.extension.downloadUrl;
+        } else {
+          const supportedInfo = peclResult.supportedVersions?.length
+            ? `, supported: ${peclResult.supportedVersions
+                .slice(0, 3)
+                .join(", ")}`
+            : "";
+          return {
+            success: false,
+            message: `未找到适用于 PHP ${phpInfo.majorMinor} ${
+              phpInfo.isNts ? "NTS" : "TS"
+            } 的 ${extName} 扩展${supportedInfo}`,
+          };
+        }
+      }
+
+      if (!finalDownloadUrl) {
+        return { success: false, message: "未找到下载链接" };
+      }
+
+      console.log(`[Install] ${extName}: downloading from ${finalDownloadUrl}`);
+
+      // Ensure temp directory exists
+      if (!existsSync(tempPath)) {
+        mkdirSync(tempPath, { recursive: true });
+      }
+
+      // Download extension ZIP
+      const zipFileName = `php_${extName}.zip`;
+      const zipPath = join(tempPath, zipFileName);
+
+      await this.downloadExtension(finalDownloadUrl, zipPath);
+      console.log(`[Install] ${extName}: download complete ${zipPath}`);
+
+      // Extract to temp directory
+      const extractPath = join(tempPath, `ext_${extName}`);
+      if (existsSync(extractPath)) {
+        this.removeDirectory(extractPath);
+      }
+      mkdirSync(extractPath, { recursive: true });
+
+      await this.unzipFile(zipPath, extractPath);
+      console.log(`[Install] ${extName}: extracted to ${extractPath}`);
+
+      // Find and copy DLL files
+      let dllCopied = false;
+      const files = this.findFilesRecursive(extractPath, ".dll");
+
+      for (const file of files) {
+        const fileName = file.split(/[/\\]/).pop() || "";
+        if (fileName.startsWith("php_") && fileName.endsWith(".dll")) {
+          const destPath = join(extDir, fileName);
+          const { copyFileSync } = require("fs");
+          copyFileSync(file, destPath);
+          console.log(
+            `[Install] ${extName}: copied ${fileName} -> ${destPath}`
+          );
+          dllCopied = true;
+        }
+      }
+
+      // Cleanup temp files
+      if (existsSync(zipPath)) {
+        unlinkSync(zipPath);
+      }
+      if (existsSync(extractPath)) {
+        this.removeDirectory(extractPath);
+      }
+
+      if (!dllCopied) {
+        return { success: false, message: "解压后未找到 DLL 文件" };
+      }
+
+      // Enable extension
+      const enableResult = await this.enableExtension(version, extName);
+
+      if (enableResult.success) {
+        return {
+          success: true,
+          message: `${extName} 扩展安装成功并已启用，重启 PHP 后生效`,
+        };
+      } else {
+        return {
+          success: true,
+          message: `${extName} 扩展 DLL 已安装，但启用失败: ${enableResult.message}。请手动在 php.ini 中添加 extension=${extName}`,
+        };
+      }
     } catch (error: any) {
-      console.error(`安装扩展 ${extName} 失败:`, error);
+      console.error(`[Install] ${extName}: error -`, error);
       return { success: false, message: `安装失败: ${error.message}` };
     }
+  }
+
+  /**
+   * 递归查找文件
+   */
+  private findFilesRecursive(dir: string, extension: string): string[] {
+    const results: string[] = [];
+
+    if (!existsSync(dir)) {
+      return results;
+    }
+
+    const items = readdirSync(dir, { withFileTypes: true });
+
+    for (const item of items) {
+      const fullPath = join(dir, item.name);
+      if (item.isDirectory()) {
+        results.push(...this.findFilesRecursive(fullPath, extension));
+      } else if (item.name.endsWith(extension)) {
+        results.push(fullPath);
+      }
+    }
+
+    return results;
   }
 
   /**
@@ -1676,31 +1976,61 @@ export class PhpManager {
   }
 
   /**
-   * 检查 URL 是否存在
+   * 检查 URL 是否存在（使用 HEAD 请求快速检查）
    */
   private async checkUrlExists(url: string): Promise<boolean> {
     return new Promise((resolve) => {
       const protocol = url.startsWith("https") ? https : http;
-      const request = protocol.request(
-        url,
-        { method: "HEAD", timeout: 5000 },
-        (response) => {
+      const urlObj = new URL(url);
+
+      // 使用 HEAD 请求快速检查（比 GET 更快）
+      const options = {
+        hostname: urlObj.hostname,
+        path: urlObj.pathname + urlObj.search,
+        method: "HEAD",
+        timeout: 5000,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+      };
+
+      const request = protocol.request(options, (response) => {
+        // 处理重定向
+        if (
+          response.statusCode === 301 ||
+          response.statusCode === 302 ||
+          response.statusCode === 307
+        ) {
+          const redirectUrl = response.headers.location;
+          if (redirectUrl) {
+            // 绝对 URL 或相对 URL 处理
+            const fullRedirectUrl = redirectUrl.startsWith("http")
+              ? redirectUrl
+              : `${urlObj.protocol}//${urlObj.host}${redirectUrl}`;
+            this.checkUrlExists(fullRedirectUrl).then(resolve);
+            return;
+          }
+          resolve(true);
+        } else {
           resolve(response.statusCode === 200);
         }
-      );
+      });
+
       request.on("error", () => resolve(false));
       request.on("timeout", () => {
         request.destroy();
         resolve(false);
       });
-      request.end();
     });
   }
 
   /**
-   * 获取 HTML 内容
+   * 获取 HTML 内容（支持 gzip 解压）
    */
   private async fetchHtmlContent(url: string): Promise<string> {
+    const zlib = await import("zlib");
+
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith("https") ? https : http;
       const request = protocol.get(
@@ -1708,15 +2038,28 @@ export class PhpManager {
         {
           headers: {
             "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            Accept:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate",
+            Connection: "keep-alive",
           },
-          timeout: 15000,
+          timeout: 20000,
         },
         (response) => {
-          if (response.statusCode === 301 || response.statusCode === 302) {
+          // 处理重定向
+          if (
+            response.statusCode === 301 ||
+            response.statusCode === 302 ||
+            response.statusCode === 307
+          ) {
             const redirectUrl = response.headers.location;
             if (redirectUrl) {
-              this.fetchHtmlContent(redirectUrl).then(resolve).catch(reject);
+              const fullUrl = redirectUrl.startsWith("http")
+                ? redirectUrl
+                : new URL(redirectUrl, url).href;
+              this.fetchHtmlContent(fullUrl).then(resolve).catch(reject);
               return;
             }
           }
@@ -1726,16 +2069,32 @@ export class PhpManager {
             return;
           }
 
-          let html = "";
-          response.on("data", (chunk) => (html += chunk));
-          response.on("end", () => resolve(html));
+          const chunks: Buffer[] = [];
+
+          // 根据 Content-Encoding 处理响应
+          const encoding = response.headers["content-encoding"];
+          let stream: NodeJS.ReadableStream = response;
+
+          if (encoding === "gzip") {
+            stream = response.pipe(zlib.createGunzip());
+          } else if (encoding === "deflate") {
+            stream = response.pipe(zlib.createInflate());
+          }
+
+          stream.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+          stream.on("end", () => {
+            const html = Buffer.concat(chunks).toString("utf-8");
+            console.log(`[HTTP] ${url} - ${html.length} bytes`);
+            resolve(html);
+          });
+          stream.on("error", reject);
         }
       );
 
       request.on("error", reject);
       request.on("timeout", () => {
         request.destroy();
-        reject(new Error("请求超时"));
+        reject(new Error("Request timeout"));
       });
     });
   }
@@ -2073,32 +2432,38 @@ if ($verifyPath -and $verifyPath.Contains($NewPhpPath)) {
     mirror?: string;
   }> {
     const composerPath = this.getComposerPath();
-    const composerBatPath = join(this.configStore.getBasePath(), "tools", "composer.bat");
+    const composerBatPath = join(
+      this.configStore.getBasePath(),
+      "tools",
+      "composer.bat"
+    );
     const mirror = this.configStore.get("composerMirror") || "";
 
-    console.log("检查 Composer 路径:", composerPath);
+    console.log("[Composer] checking path:", composerPath);
 
     if (!existsSync(composerPath)) {
-      console.log("Composer 未安装");
+      console.log("[Composer] not installed");
       return { installed: false, mirror };
     }
 
     let version: string | undefined;
 
-    // 方法1: 尝试直接使用 composer.bat（如果在 PATH 中）
+    // Method 1: Try composer.bat directly
     try {
-      console.log("尝试使用 composer --version...");
+      console.log("[Composer] trying composer --version...");
       const { stdout } = await execAsync("composer --version", {
         windowsHide: true,
         timeout: 15000,
         encoding: "utf8",
       });
-      console.log("Composer 输出:", stdout);
-      
+      console.log("[Composer] output:", stdout);
+
       // 解析版本号 - 支持多种格式
       // "Composer version 2.9-dev+9497eca6e15b115d25833c68b7c5c76589953b65 (2.9-dev)"
       // "Composer version 2.7.1 2024-01-01"
-      const versionMatch = stdout.match(/Composer version (\d+\.\d+(?:\.\d+)?(?:-\w+)?)/);
+      const versionMatch = stdout.match(
+        /Composer version (\d+\.\d+(?:\.\d+)?(?:-\w+)?)/
+      );
       if (versionMatch) {
         version = versionMatch[1];
         console.log("解析到版本:", version);
@@ -2117,7 +2482,9 @@ if ($verifyPath -and $verifyPath.Contains($NewPhpPath)) {
           timeout: 15000,
           encoding: "utf8",
         });
-        const versionMatch = stdout.match(/Composer version (\d+\.\d+(?:\.\d+)?(?:-\w+)?)/);
+        const versionMatch = stdout.match(
+          /Composer version (\d+\.\d+(?:\.\d+)?(?:-\w+)?)/
+        );
         if (versionMatch) {
           version = versionMatch[1];
           console.log("解析到版本:", version);
@@ -2137,12 +2504,17 @@ if ($verifyPath -and $verifyPath.Contains($NewPhpPath)) {
 
         if (existsSync(phpExe)) {
           console.log("尝试使用 PHP 运行 composer.phar...");
-          const { stdout } = await execAsync(`"${phpExe}" "${composerPath}" --version`, {
-            windowsHide: true,
-            timeout: 15000,
-            encoding: "utf8",
-          });
-          const versionMatch = stdout.match(/Composer version (\d+\.\d+(?:\.\d+)?(?:-\w+)?)/);
+          const { stdout } = await execAsync(
+            `"${phpExe}" "${composerPath}" --version`,
+            {
+              windowsHide: true,
+              timeout: 15000,
+              encoding: "utf8",
+            }
+          );
+          const versionMatch = stdout.match(
+            /Composer version (\d+\.\d+(?:\.\d+)?(?:-\w+)?)/
+          );
           if (versionMatch) {
             version = versionMatch[1];
             console.log("解析到版本:", version);
@@ -2179,7 +2551,7 @@ if ($verifyPath -and $verifyPath.Contains($NewPhpPath)) {
 
       // 下载 Composer
       console.log("正在下载 Composer...");
-      
+
       // 尝试多个下载源
       const urls = [
         "https://getcomposer.org/composer.phar",
@@ -2226,10 +2598,13 @@ if ($verifyPath -and $verifyPath.Contains($NewPhpPath)) {
 
         if (existsSync(phpExe)) {
           try {
-            const { stdout } = await execAsync(`"${phpExe}" "${composerPath}" --version`, {
-              windowsHide: true,
-              timeout: 10000,
-            });
+            const { stdout } = await execAsync(
+              `"${phpExe}" "${composerPath}" --version`,
+              {
+                windowsHide: true,
+                timeout: 10000,
+              }
+            );
             console.log("Composer 安装成功:", stdout);
           } catch (e) {
             console.log("Composer 已下载，但验证失败（可能是 PHP 问题）");
@@ -2237,7 +2612,10 @@ if ($verifyPath -and $verifyPath.Contains($NewPhpPath)) {
         }
       }
 
-      return { success: true, message: "Composer 安装成功，已添加到系统环境变量" };
+      return {
+        success: true,
+        message: "Composer 安装成功，已添加到系统环境变量",
+      };
     } catch (error: any) {
       console.error("Composer 安装失败:", error);
       return { success: false, message: `安装失败: ${error.message}` };
@@ -2279,7 +2657,10 @@ if ($verifyPath -and $verifyPath.Contains($NewPhpPath)) {
    */
   private async addComposerToPath(toolsDir: string): Promise<void> {
     try {
-      const tempScriptPath = join(this.configStore.getTempPath(), "add_composer_path.ps1");
+      const tempScriptPath = join(
+        this.configStore.getTempPath(),
+        "add_composer_path.ps1"
+      );
       mkdirSync(this.configStore.getTempPath(), { recursive: true });
 
       const psScript = `
@@ -2323,7 +2704,10 @@ Write-Host "SUCCESS: Composer path added to user PATH"
    */
   private async removeComposerFromPath(toolsDir: string): Promise<void> {
     try {
-      const tempScriptPath = join(this.configStore.getTempPath(), "remove_composer_path.ps1");
+      const tempScriptPath = join(
+        this.configStore.getTempPath(),
+        "remove_composer_path.ps1"
+      );
       mkdirSync(this.configStore.getTempPath(), { recursive: true });
 
       const psScript = `
@@ -2448,7 +2832,10 @@ Write-Host "SUCCESS: Composer path removed from user PATH"
 
       const composerPath = this.getComposerPath();
       if (!existsSync(composerPath)) {
-        return { success: false, message: "Composer 未安装，请先安装 Composer" };
+        return {
+          success: false,
+          message: "Composer 未安装，请先安装 Composer",
+        };
       }
 
       const phpPath = this.configStore.getPhpPath(activePhp);
@@ -2493,7 +2880,11 @@ Write-Host "SUCCESS: Composer path removed from user PATH"
         env: {
           ...process.env,
           COMPOSER_PROCESS_TIMEOUT: "600",
-          COMPOSER_HOME: join(this.configStore.getBasePath(), "tools", "composer"),
+          COMPOSER_HOME: join(
+            this.configStore.getBasePath(),
+            "tools",
+            "composer"
+          ),
         },
       });
 
