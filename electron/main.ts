@@ -13,6 +13,7 @@ import { MysqlManager } from "./services/MysqlManager";
 import { NginxManager } from "./services/NginxManager";
 import { RedisManager } from "./services/RedisManager";
 import { NodeManager } from "./services/NodeManager";
+import { GoManager } from "./services/GoManager";
 import { ServiceManager } from "./services/ServiceManager";
 import { HostsManager } from "./services/HostsManager";
 import { GitManager } from "./services/GitManager";
@@ -98,7 +99,7 @@ export function sendDownloadProgress(
   type: string,
   progress: number,
   downloaded: number,
-  total: number
+  total: number,
 ) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("download-progress", {
@@ -117,6 +118,7 @@ const mysqlManager = new MysqlManager(configStore);
 const nginxManager = new NginxManager(configStore);
 const redisManager = new RedisManager(configStore);
 const nodeManager = new NodeManager(configStore);
+const goManager = new GoManager(configStore);
 const serviceManager = new ServiceManager(configStore);
 const hostsManager = new HostsManager();
 const gitManager = new GitManager(configStore);
@@ -315,7 +317,7 @@ ipcMain.handle("window:close", () => mainWindow?.close());
 
 // 打开外部链接
 ipcMain.handle("shell:openExternal", (_, url: string) =>
-  shell.openExternal(url)
+  shell.openExternal(url),
 );
 ipcMain.handle("shell:openPath", (_, path: string) => shell.openPath(path));
 
@@ -332,33 +334,33 @@ ipcMain.handle("dialog:selectDirectory", async () => {
 // ==================== PHP 管理 ====================
 ipcMain.handle("php:getVersions", () => phpManager.getInstalledVersions());
 ipcMain.handle("php:getAvailableVersions", () =>
-  phpManager.getAvailableVersions()
+  phpManager.getAvailableVersions(),
 );
 ipcMain.handle("php:install", (_, version: string) =>
-  phpManager.install(version)
+  phpManager.install(version),
 );
 ipcMain.handle("php:uninstall", (_, version: string) =>
-  phpManager.uninstall(version)
+  phpManager.uninstall(version),
 );
 ipcMain.handle("php:setActive", (_, version: string) =>
-  phpManager.setActive(version)
+  phpManager.setActive(version),
 );
 ipcMain.handle("php:getExtensions", (_, version: string) =>
-  phpManager.getExtensions(version)
+  phpManager.getExtensions(version),
 );
 ipcMain.handle("php:openExtensionDir", (_, version: string) =>
-  phpManager.openExtensionDir(version)
+  phpManager.openExtensionDir(version),
 );
 ipcMain.handle(
   "php:getAvailableExtensions",
   (_, version: string, searchKeyword?: string) =>
-    phpManager.getAvailableExtensions(version, searchKeyword)
+    phpManager.getAvailableExtensions(version, searchKeyword),
 );
 ipcMain.handle("php:enableExtension", (_, version: string, ext: string) =>
-  phpManager.enableExtension(version, ext)
+  phpManager.enableExtension(version, ext),
 );
 ipcMain.handle("php:disableExtension", (_, version: string, ext: string) =>
-  phpManager.disableExtension(version, ext)
+  phpManager.disableExtension(version, ext),
 );
 ipcMain.handle(
   "php:installExtension",
@@ -367,14 +369,14 @@ ipcMain.handle(
     version: string,
     ext: string,
     downloadUrl?: string,
-    packageName?: string
-  ) => phpManager.installExtension(version, ext, downloadUrl, packageName)
+    packageName?: string,
+  ) => phpManager.installExtension(version, ext, downloadUrl, packageName),
 );
 ipcMain.handle("php:getConfig", (_, version: string) =>
-  phpManager.getConfig(version)
+  phpManager.getConfig(version),
 );
 ipcMain.handle("php:saveConfig", (_, version: string, config: string) =>
-  phpManager.saveConfig(version, config)
+  phpManager.saveConfig(version, config),
 );
 
 // ==================== Composer 管理 ====================
@@ -382,62 +384,62 @@ ipcMain.handle("composer:getStatus", () => phpManager.getComposerStatus());
 ipcMain.handle("composer:install", () => phpManager.installComposer());
 ipcMain.handle("composer:uninstall", () => phpManager.uninstallComposer());
 ipcMain.handle("composer:setMirror", (_, mirror: string) =>
-  phpManager.setComposerMirror(mirror)
+  phpManager.setComposerMirror(mirror),
 );
 ipcMain.handle(
   "composer:createLaravelProject",
   (_, projectName: string, targetDir: string) =>
-    phpManager.createLaravelProject(projectName, targetDir)
+    phpManager.createLaravelProject(projectName, targetDir),
 );
 
 // ==================== MySQL 管理 ====================
 ipcMain.handle("mysql:getVersions", () => mysqlManager.getInstalledVersions());
 ipcMain.handle("mysql:getAvailableVersions", () =>
-  mysqlManager.getAvailableVersions()
+  mysqlManager.getAvailableVersions(),
 );
 ipcMain.handle("mysql:install", (_, version: string) =>
-  mysqlManager.install(version)
+  mysqlManager.install(version),
 );
 ipcMain.handle("mysql:uninstall", (_, version: string) =>
-  mysqlManager.uninstall(version)
+  mysqlManager.uninstall(version),
 );
 ipcMain.handle("mysql:start", (_, version: string) =>
-  mysqlManager.start(version)
+  mysqlManager.start(version),
 );
 ipcMain.handle("mysql:stop", (_, version: string) =>
-  mysqlManager.stop(version)
+  mysqlManager.stop(version),
 );
 ipcMain.handle("mysql:restart", (_, version: string) =>
-  mysqlManager.restart(version)
+  mysqlManager.restart(version),
 );
 ipcMain.handle("mysql:getStatus", (_, version: string) =>
-  mysqlManager.getStatus(version)
+  mysqlManager.getStatus(version),
 );
 ipcMain.handle(
   "mysql:changePassword",
   (_, version: string, newPassword: string, currentPassword?: string) =>
-    mysqlManager.changeRootPassword(version, newPassword, currentPassword)
+    mysqlManager.changeRootPassword(version, newPassword, currentPassword),
 );
 ipcMain.handle("mysql:getConfig", (_, version: string) =>
-  mysqlManager.getConfig(version)
+  mysqlManager.getConfig(version),
 );
 ipcMain.handle("mysql:saveConfig", (_, version: string, config: string) =>
-  mysqlManager.saveConfig(version, config)
+  mysqlManager.saveConfig(version, config),
 );
 ipcMain.handle("mysql:reinitialize", (_, version: string) =>
-  mysqlManager.reinitialize(version)
+  mysqlManager.reinitialize(version),
 );
 
 // ==================== Nginx 管理 ====================
 ipcMain.handle("nginx:getVersions", () => nginxManager.getInstalledVersions());
 ipcMain.handle("nginx:getAvailableVersions", () =>
-  nginxManager.getAvailableVersions()
+  nginxManager.getAvailableVersions(),
 );
 ipcMain.handle("nginx:install", (_, version: string) =>
-  nginxManager.install(version)
+  nginxManager.install(version),
 );
 ipcMain.handle("nginx:uninstall", (_, version: string) =>
-  nginxManager.uninstall(version)
+  nginxManager.uninstall(version),
 );
 ipcMain.handle("nginx:start", () => nginxManager.start());
 ipcMain.handle("nginx:stop", () => nginxManager.stop());
@@ -446,39 +448,39 @@ ipcMain.handle("nginx:reload", () => nginxManager.reload());
 ipcMain.handle("nginx:getStatus", () => nginxManager.getStatus());
 ipcMain.handle("nginx:getConfig", () => nginxManager.getConfig());
 ipcMain.handle("nginx:saveConfig", (_, config: string) =>
-  nginxManager.saveConfig(config)
+  nginxManager.saveConfig(config),
 );
 ipcMain.handle("nginx:getSites", () => nginxManager.getSites());
 ipcMain.handle("nginx:addSite", (_, site: any) => nginxManager.addSite(site));
 ipcMain.handle("nginx:removeSite", (_, name: string) =>
-  nginxManager.removeSite(name)
+  nginxManager.removeSite(name),
 );
 ipcMain.handle("nginx:updateSite", (_, originalName: string, site: any) =>
-  nginxManager.updateSite(originalName, site)
+  nginxManager.updateSite(originalName, site),
 );
 ipcMain.handle("nginx:enableSite", (_, name: string) =>
-  nginxManager.enableSite(name)
+  nginxManager.enableSite(name),
 );
 ipcMain.handle("nginx:disableSite", (_, name: string) =>
-  nginxManager.disableSite(name)
+  nginxManager.disableSite(name),
 );
 ipcMain.handle("nginx:generateLaravelConfig", (_, site: any) =>
-  nginxManager.generateLaravelConfig(site)
+  nginxManager.generateLaravelConfig(site),
 );
 ipcMain.handle("nginx:requestSSL", (_, domain: string, email: string) =>
-  nginxManager.requestSSLCertificate(domain, email)
+  nginxManager.requestSSLCertificate(domain, email),
 );
 
 // ==================== Redis 管理 ====================
 ipcMain.handle("redis:getVersions", () => redisManager.getInstalledVersions());
 ipcMain.handle("redis:getAvailableVersions", () =>
-  redisManager.getAvailableVersions()
+  redisManager.getAvailableVersions(),
 );
 ipcMain.handle("redis:install", (_, version: string) =>
-  redisManager.install(version)
+  redisManager.install(version),
 );
 ipcMain.handle("redis:uninstall", (_, version: string) =>
-  redisManager.uninstall(version)
+  redisManager.uninstall(version),
 );
 ipcMain.handle("redis:start", () => redisManager.start());
 ipcMain.handle("redis:stop", () => redisManager.stop());
@@ -486,103 +488,131 @@ ipcMain.handle("redis:restart", () => redisManager.restart());
 ipcMain.handle("redis:getStatus", () => redisManager.getStatus());
 ipcMain.handle("redis:getConfig", () => redisManager.getConfig());
 ipcMain.handle("redis:saveConfig", (_, config: string) =>
-  redisManager.saveConfig(config)
+  redisManager.saveConfig(config),
 );
 
 // ==================== Node.js 管理 ====================
 ipcMain.handle("node:getVersions", () => nodeManager.getInstalledVersions());
 ipcMain.handle("node:getAvailableVersions", () =>
-  nodeManager.getAvailableVersions()
+  nodeManager.getAvailableVersions(),
 );
 ipcMain.handle("node:install", (_, version: string, downloadUrl: string) =>
-  nodeManager.install(version, downloadUrl)
+  nodeManager.install(version, downloadUrl),
 );
 ipcMain.handle("node:uninstall", (_, version: string) =>
-  nodeManager.uninstall(version)
+  nodeManager.uninstall(version),
 );
 ipcMain.handle("node:setActive", (_, version: string) =>
-  nodeManager.setActive(version)
+  nodeManager.setActive(version),
 );
 ipcMain.handle("node:getInfo", (_, version: string) =>
-  nodeManager.getNodeInfo(version)
+  nodeManager.getNodeInfo(version),
+);
+
+// ==================== Go 管理 ====================
+ipcMain.handle("go:getVersions", () => goManager.getInstalledVersions());
+ipcMain.handle("go:getAvailableVersions", () =>
+  goManager.getAvailableVersions(),
+);
+ipcMain.handle("go:install", (_, version: string, downloadUrl: string) =>
+  goManager.install(version, downloadUrl),
+);
+ipcMain.handle("go:uninstall", (_, version: string) =>
+  goManager.uninstall(version),
+);
+ipcMain.handle("go:setActive", (_, version: string) =>
+  goManager.setActive(version),
+);
+ipcMain.handle("go:getInfo", (_, version: string) =>
+  goManager.getGoInfo(version),
 );
 
 // ==================== 服务管理 ====================
 ipcMain.handle("service:getAll", () => serviceManager.getAllServices());
 ipcMain.handle("service:setAutoStart", (_, service: string, enabled: boolean) =>
-  serviceManager.setAutoStart(service, enabled)
+  serviceManager.setAutoStart(service, enabled),
 );
 ipcMain.handle("service:getAutoStart", (_, service: string) =>
-  serviceManager.getAutoStart(service)
+  serviceManager.getAutoStart(service),
 );
 ipcMain.handle("service:startAll", () => serviceManager.startAll());
 ipcMain.handle("service:stopAll", () => serviceManager.stopAll());
 // PHP-CGI 管理 - 支持多版本
-ipcMain.handle("service:getPhpCgiStatus", () => serviceManager.getPhpCgiStatus());
+ipcMain.handle("service:getPhpCgiStatus", () =>
+  serviceManager.getPhpCgiStatus(),
+);
 ipcMain.handle("service:startPhpCgi", () => serviceManager.startPhpCgi());
 ipcMain.handle("service:stopPhpCgi", () => serviceManager.stopPhpCgi());
 ipcMain.handle("service:startAllPhpCgi", () => serviceManager.startAllPhpCgi());
 ipcMain.handle("service:stopAllPhpCgi", () => serviceManager.stopAllPhpCgi());
-ipcMain.handle("service:startPhpCgiVersion", (_, version: string) => serviceManager.startPhpCgiVersion(version));
-ipcMain.handle("service:stopPhpCgiVersion", (_, version: string) => serviceManager.stopPhpCgiVersion(version));
-ipcMain.handle("service:getPhpCgiPort", (_, version: string) => serviceManager.getPhpCgiPort(version));
+ipcMain.handle("service:startPhpCgiVersion", (_, version: string) =>
+  serviceManager.startPhpCgiVersion(version),
+);
+ipcMain.handle("service:stopPhpCgiVersion", (_, version: string) =>
+  serviceManager.stopPhpCgiVersion(version),
+);
+ipcMain.handle("service:getPhpCgiPort", (_, version: string) =>
+  serviceManager.getPhpCgiPort(version),
+);
 
 // ==================== Hosts 管理 ====================
 ipcMain.handle("hosts:get", () => hostsManager.getHosts());
 ipcMain.handle("hosts:add", (_, domain: string, ip: string) =>
-  hostsManager.addHost(domain, ip)
+  hostsManager.addHost(domain, ip),
 );
 ipcMain.handle("hosts:remove", (_, domain: string) =>
-  hostsManager.removeHost(domain)
+  hostsManager.removeHost(domain),
 );
 
 // ==================== Git 管理 ====================
 ipcMain.handle("git:getVersions", () => gitManager.getInstalledVersions());
 ipcMain.handle("git:getAvailableVersions", () =>
-  gitManager.getAvailableVersions()
+  gitManager.getAvailableVersions(),
 );
 ipcMain.handle("git:install", (_, version: string) =>
-  gitManager.install(version)
+  gitManager.install(version),
 );
 ipcMain.handle("git:uninstall", () => gitManager.uninstall());
 ipcMain.handle("git:checkSystem", () => gitManager.checkSystemGit());
 ipcMain.handle("git:getConfig", () => gitManager.getGitConfig());
 ipcMain.handle("git:setConfig", (_, name: string, email: string) =>
-  gitManager.setGitConfig(name, email)
+  gitManager.setGitConfig(name, email),
 );
 
 // ==================== Python 管理 ====================
-ipcMain.handle("python:getVersions", () => pythonManager.getInstalledVersions());
+ipcMain.handle("python:getVersions", () =>
+  pythonManager.getInstalledVersions(),
+);
 ipcMain.handle("python:getAvailableVersions", () =>
-  pythonManager.getAvailableVersions()
+  pythonManager.getAvailableVersions(),
 );
 ipcMain.handle("python:install", (_, version: string) =>
-  pythonManager.install(version)
+  pythonManager.install(version),
 );
 ipcMain.handle("python:uninstall", (_, version: string) =>
-  pythonManager.uninstall(version)
+  pythonManager.uninstall(version),
 );
 ipcMain.handle("python:setActive", (_, version: string) =>
-  pythonManager.setActive(version)
+  pythonManager.setActive(version),
 );
 ipcMain.handle("python:checkSystem", () => pythonManager.checkSystemPython());
 ipcMain.handle("python:getPipInfo", (_, version: string) =>
-  pythonManager.getPipInfo(version)
+  pythonManager.getPipInfo(version),
 );
 ipcMain.handle(
   "python:installPackage",
   (_, version: string, packageName: string) =>
-    pythonManager.installPackage(version, packageName)
+    pythonManager.installPackage(version, packageName),
 );
 
 // ==================== 配置管理 ====================
 ipcMain.handle("config:get", (_, key: string) => configStore.get(key));
 ipcMain.handle("config:set", (_, key: string, value: any) =>
-  configStore.set(key, value)
+  configStore.set(key, value),
 );
 ipcMain.handle("config:getBasePath", () => configStore.getBasePath());
 ipcMain.handle("config:setBasePath", (_, path: string) =>
-  configStore.setBasePath(path)
+  configStore.setBasePath(path),
 );
 
 // ==================== 应用设置 ====================
@@ -636,7 +666,7 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
       } catch (e) {
         // 忽略删除失败
       }
-      
+
       // 删除 VBS 脚本
       const appDir = require("path").dirname(exePath);
       const vbsPath = join(appDir, "silent_start.vbs");
@@ -647,7 +677,7 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
           // 忽略删除失败
         }
       }
-      
+
       configStore.set("autoLaunch", false);
       return { success: true, message: "已禁用开机自启" };
     }
@@ -685,17 +715,17 @@ ipcMain.handle("app:getAutoLaunch", async () => {
 ipcMain.handle("app:getVersion", async () => {
   const { existsSync, readFileSync } = require("fs");
   const { join } = require("path");
-  
+
   const version = app.getVersion();
   let buildTime = "";
   let buildDate = "";
-  
+
   // 尝试读取版本信息文件
   try {
     const versionFilePath = app.isPackaged
       ? join(process.resourcesPath, "public", "version.json")
       : join(__dirname, "..", "public", "version.json");
-    
+
     if (existsSync(versionFilePath)) {
       const versionInfo = JSON.parse(readFileSync(versionFilePath, "utf-8"));
       buildTime = versionInfo.buildTime || "";
@@ -704,12 +734,12 @@ ipcMain.handle("app:getVersion", async () => {
   } catch (e) {
     // 忽略错误
   }
-  
+
   return {
     version,
     buildTime,
     buildDate,
-    isPackaged: app.isPackaged
+    isPackaged: app.isPackaged,
   };
 });
 
@@ -733,9 +763,13 @@ ipcMain.handle("app:quit", () => {
 // ==================== 日志管理 ====================
 ipcMain.handle("log:getFiles", () => logManager.getLogFiles());
 ipcMain.handle("log:read", (_, logPath: string, lines?: number) =>
-  logManager.readLog(logPath, lines)
+  logManager.readLog(logPath, lines),
 );
-ipcMain.handle("log:clear", (_, logPath: string) => logManager.clearLog(logPath));
-ipcMain.handle("log:getDirectory", (_, type: 'nginx' | 'php' | 'mysql' | 'sites', version?: string) =>
-  logManager.getLogDirectory(type, version)
+ipcMain.handle("log:clear", (_, logPath: string) =>
+  logManager.clearLog(logPath),
+);
+ipcMain.handle(
+  "log:getDirectory",
+  (_, type: "nginx" | "php" | "mysql" | "sites", version?: string) =>
+    logManager.getLogDirectory(type, version),
 );

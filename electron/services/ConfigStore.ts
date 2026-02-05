@@ -10,8 +10,10 @@ interface ConfigSchema {
   nginxVersions: string[];
   redisVersions: string[];
   nodeVersions: string[];
+  goVersions: string[];
   activePhpVersion: string;
   activeNodeVersion: string;
+  activeGoVersion: string;
   autoStart: {
     nginx: boolean;
     mysql: boolean;
@@ -66,8 +68,10 @@ export class ConfigStore {
         nginxVersions: [],
         redisVersions: [],
         nodeVersions: [],
+        goVersions: [],
         activePhpVersion: "",
         activeNodeVersion: "",
+        activeGoVersion: "",
         autoStart: {
           nginx: false,
           mysql: false,
@@ -99,6 +103,7 @@ export class ConfigStore {
       join(this.basePath, "nginx", "ssl"),
       join(this.basePath, "redis"),
       join(this.basePath, "nodejs"),
+      join(this.basePath, "go"),
       join(this.basePath, "logs"),
       join(this.basePath, "temp"),
       join(this.basePath, "www"),
@@ -147,6 +152,10 @@ export class ConfigStore {
 
   getNodePath(): string {
     return join(this.basePath, "nodejs");
+  }
+
+  getGoPath(): string {
+    return join(this.basePath, "go");
   }
 
   getLogsPath(): string {

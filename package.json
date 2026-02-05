@@ -1,6 +1,6 @@
 {
   "name": "phper-dev-manager",
-  "version": "1.0.8",
+  "version": "1.0.10",
   "description": "PHP开发环境管理器 - 管理PHP、MySQL、Nginx、Redis服务",
   "main": "dist-electron/main.js",
   "scripts": {
