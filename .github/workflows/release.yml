@@ -1,0 +1,77 @@
+# 推送代码到 main 时：自动升级 patch 版本、构建、打 tag、创建 GitHub Release 并上传构建产物
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # 支持在 Actions 页面手动触发
+
+jobs:
+  release:
+    runs-on: windows-latest
+    # 避免由「版本 bump 提交」触发的二次运行
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+
+    permissions:
+      contents: write  # 创建 Release、推送 tag 需要
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 升级版本号 (patch)
+        run: node scripts/bump-version.js patch
+
+      - name: 读取新版本号
+        id: version
+        run: |
+          $ver = (Get-Content package.json | ConvertFrom-Json).version
+          echo "VERSION=$ver" >> $env:GITHUB_ENV
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: 构建 (不再次 bump)
+        run: npm run build:nobump
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 提交版本变更 [skip ci]
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json public/version.json
+          git diff --staged --quiet || git commit -m "chore: release v${{ env.VERSION }} [skip ci]"
+          git push origin main
+
+      - name: 创建并推送 Tag
+        run: |
+          git tag "v${{ env.VERSION }}"
+          git push origin "v${{ env.VERSION }}"
+
+      - name: 创建 Release 并上传构建产物
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
+          body: |
+            ## PHPer 开发环境管理器 v${{ env.VERSION }}
+            - 自动构建于 ${{ github.event.head_commit.timestamp }}
+            - 提交: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          files: |
+            release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,70 @@
+# 推送 tag (如 v1.0.11) 时：按 tag 版本构建并发布到该 Release
+name: Build and Release on Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 从 Tag 解析版本号
+        id: tag_version
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag.TrimStart('v')
+          echo "VERSION=$ver" >> $env:GITHUB_ENV
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: 同步 package.json 版本
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $pkg.version = "${{ env.VERSION }}"
+          $pkg | ConvertTo-Json -Depth 100 | Set-Content package.json -Encoding utf8
+
+      - name: 同步 public/version.json
+        run: |
+          $versionInfo = @{
+            version = "${{ env.VERSION }}"
+            buildTime = (Get-Date).ToUniversalTime().ToString("o")
+            buildDate = (Get-Date).ToString("yyyy/M/d")
+          }
+          $versionInfo | ConvertTo-Json | Set-Content public/version.json -Encoding utf8
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建 (不升级版本)
+        run: npm run build:nobump
+
+      - name: 创建 Release 并上传构建产物
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            ## PHPer 开发环境管理器 ${{ github.ref_name }}
+            - 由 Tag 触发构建
+            - 提交: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          files: |
+            release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
