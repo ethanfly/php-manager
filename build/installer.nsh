@@ -13,5 +13,14 @@
 !macro customUnInstall
   ; 卸载时的自定义操作
   Delete "$DESKTOP\PHPer开发环境管理器.lnk"
+
+  ; 清理开机自启计划任务
+  nsExec::ExecToLog 'schtasks /delete /tn "PHPerDevManager" /f'
+
+  ; 删除 VBS 静默启动脚本
+  Delete "$INSTDIR\silent_start.vbs"
+
+  ; 删除 Startup 目录下的服务自启脚本
+  Delete "$APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\phper-*.bat"
 !macroend
 

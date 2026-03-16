@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <h1 class="page-title">
-        <span class="title-icon nginx-gradient"><el-icon><Connection /></el-icon></span>
+        <span class="title-icon"><el-icon><Connection /></el-icon></span>
         Nginx 管理
       </h1>
       <p class="page-description">安装、配置和管理 Nginx Web 服务器</p>
@@ -35,7 +35,7 @@
         <div v-else class="service-panel">
           <div class="service-status">
             <div class="status-main">
-              <div class="service-icon nginx-gradient">
+              <div class="service-icon">
                 <el-icon><Connection /></el-icon>
               </div>
               <div class="service-info">
@@ -445,9 +445,6 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.nginx-gradient {
-  background: linear-gradient(135deg, #009639 0%, #0ecc5a 100%) !important;
-}
 
 .loading-state {
   display: flex;
@@ -481,14 +478,16 @@ onUnmounted(() => {
   }
   
   .service-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 32px;
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
+    color: var(--accent-color);
+    font-size: 22px;
   }
   
   .service-info {

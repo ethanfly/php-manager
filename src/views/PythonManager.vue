@@ -431,15 +431,16 @@ onUnmounted(() => {
   }
   
   .version-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #3776ab 0%, #ffd43b 100%);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 24px;
+    color: var(--accent-color);
+    font-size: 20px;
   }
   
   .version-details {

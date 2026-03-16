@@ -38,7 +38,7 @@
             :class="{ running: version.isRunning }"
           >
             <div class="version-info">
-              <div class="version-icon mysql-icon">
+              <div class="version-icon">
                 <el-icon><Coin /></el-icon>
               </div>
               <div class="version-details">
@@ -541,10 +541,6 @@ onUnmounted(() => {
   &.running {
     border-color: var(--success-color);
   }
-}
-
-.mysql-icon {
-  background: linear-gradient(135deg, #00758f 0%, #00b4d8 100%) !important;
 }
 
 .available-versions {

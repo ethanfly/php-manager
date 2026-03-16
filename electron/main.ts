@@ -138,12 +138,6 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    titleBarStyle: "hidden",
-    titleBarOverlay: {
-      color: "#1a1a2e",
-      symbolColor: "#ffffff",
-      height: 40,
-    },
     frame: false,
     icon: appIcon,
     show: false, // 先不显示，等 ready-to-show
@@ -650,6 +644,11 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
       const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run """${exePath.replace(/\\/g, "\\\\")}""", 0, False`;
       writeFileSync(vbsPath, vbsContent);
 
+      // 验证 VBS 文件写入成功
+      if (!existsSync(vbsPath)) {
+        throw new Error("VBS 启动脚本写入失败");
+      }
+
       // 创建任务计划程序任务，运行 VBS 脚本实现静默启动
       const command = `schtasks /create /tn "${taskName}" /tr "wscript.exe \\"${vbsPath}\\"" /sc onlogon /rl highest /f`;
       execSync(command, { encoding: "buffer", windowsHide: true });
@@ -693,6 +692,8 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
 // 获取开机自启状态
 ipcMain.handle("app:getAutoLaunch", async () => {
   const { execSync } = require("child_process");
+  const { existsSync, unlinkSync } = require("fs");
+  const { join } = require("path");
   const taskName = "PHPerDevManager";
 
   // 开发模式下返回 false
@@ -705,6 +706,26 @@ ipcMain.handle("app:getAutoLaunch", async () => {
       encoding: "buffer",
       windowsHide: true,
     });
+
+    // 计划任务存在，验证 VBS 文件是否还存在
+    const exePath = app.getPath("exe");
+    const appDir = require("path").dirname(exePath);
+    const vbsPath = join(appDir, "silent_start.vbs");
+
+    if (!existsSync(vbsPath)) {
+      // VBS 文件丢失，清理孤立的计划任务
+      console.warn("开机自启 VBS 文件丢失，自动清理孤立计划任务");
+      try {
+        execSync(`schtasks /delete /tn "${taskName}" /f`, {
+          encoding: "buffer",
+          windowsHide: true,
+        });
+      } catch (e) {
+        // 忽略清理失败
+      }
+      return false;
+    }
+
     return true;
   } catch (e) {
     return false;

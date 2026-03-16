@@ -15,6 +15,7 @@ import http from "http";
 import { createWriteStream } from "fs";
 import unzipper from "unzipper";
 import { sendDownloadProgress } from "../main";
+import { withPathLock } from "./pathLock";
 
 const execAsync = promisify(exec);
 
@@ -392,38 +393,53 @@ export class GoManager {
   }
 
   private async addToPath(goPath: string): Promise<void> {
-    const binPath = join(goPath, "bin");
-    const psScript = `
-$ErrorActionPreference = 'Stop'
-$newPath = '${binPath.replace(/\\/g, "\\\\")}'
+    return withPathLock(async () => {
+      const binPath = join(goPath, "bin");
 
-$currentPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$pathArray = $currentPath -split ';' | Where-Object { $_ -ne '' }
+      const psScript = `
+param([string]$BinPath)
+
+$ErrorActionPreference = 'Stop'
+
+$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+if ($userPath -eq $null) { $userPath = '' }
+
+$pathArray = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.Trim() -ne '' }
 
 $filteredPaths = $pathArray | Where-Object {
   $p = $_.ToLower()
-  -not ($p -like '*\\\\go-*\\\\bin*' -or $p -like '*\\\\go\\\\bin*' -or $p -like '*phper*go*')
+  -not ($p -like '*\\go-*\\bin*' -or $p -like '*\\go\\bin*' -or $p -like '*phper*go*')
 }
 
-$newPathArray = @($newPath) + $filteredPaths
+$newPathArray = @($BinPath) + $filteredPaths
 $finalPath = ($newPathArray | Select-Object -Unique) -join ';'
+
+if ($finalPath.Length -gt 1024) {
+  Write-Warning "WARNING: PATH length exceeds 1024 characters ($($finalPath.Length) chars). Some paths may not work correctly."
+}
+
 [Environment]::SetEnvironmentVariable('Path', $finalPath, 'User')
 Write-Output "PATH updated"
 `;
 
-    const tempPs1 = join(this.configStore.getTempPath(), "update_go_path.ps1");
-    const { writeFileSync } = require("fs");
-    writeFileSync(tempPs1, psScript, "utf-8");
+      const tempPs1 = join(this.configStore.getTempPath(), "update_go_path.ps1");
+      const { writeFileSync } = require("fs");
+      writeFileSync(tempPs1, psScript, "utf-8");
 
-    try {
-      await execAsync(`powershell -ExecutionPolicy Bypass -File "${tempPs1}"`, {
-        timeout: 30000,
-      });
-    } finally {
       try {
-        unlinkSync(tempPs1);
-      } catch (e) {}
-    }
+        const { stdout } = await execAsync(
+          `powershell -ExecutionPolicy Bypass -File "${tempPs1}" -BinPath "${binPath}"`,
+          { timeout: 30000 }
+        );
+        if (stdout.includes('WARNING')) {
+          console.warn('PATH length warning:', stdout.trim())
+        }
+      } finally {
+        try {
+          unlinkSync(tempPs1);
+        } catch (e) {}
+      }
+    });
   }
 
   private getFallbackVersions(): AvailableGoVersion[] {

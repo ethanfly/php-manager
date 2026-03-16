@@ -17,7 +17,7 @@
         :class="{ running: service.running }"
       >
         <div class="status-header">
-          <div class="service-icon" :style="{ background: service.gradient }">
+          <div class="service-icon">
             <el-icon><component :is="service.icon" /></el-icon>
           </div>
           <div class="service-info">
@@ -88,7 +88,7 @@
           :class="{ running: service.running }"
         >
           <div class="status-header">
-            <div class="service-icon" :style="{ background: service.gradient }">
+            <div class="service-icon">
               <el-icon><component :is="service.icon" /></el-icon>
             </div>
             <div class="service-info">
@@ -318,7 +318,6 @@ interface Service {
   name: string
   displayName: string
   icon: string
-  gradient: string
   running: boolean
   loading: boolean
   version?: string  // 用于 PHP-CGI 显示版本
@@ -327,9 +326,9 @@ interface Service {
 
 // 基础服务列表配置
 const baseServiceConfigs = [
-  { name: 'nginx', displayName: 'Nginx', icon: 'Connection', gradient: 'linear-gradient(135deg, #009639 0%, #0ecc5a 100%)' },
-  { name: 'mysql', displayName: 'MySQL', icon: 'Coin', gradient: 'linear-gradient(135deg, #00758f 0%, #00b4d8 100%)' },
-  { name: 'redis', displayName: 'Redis', icon: 'Grid', gradient: 'linear-gradient(135deg, #dc382d 0%, #ff6b6b 100%)' }
+  { name: 'nginx', displayName: 'Nginx', icon: 'Connection' },
+  { name: 'mysql', displayName: 'MySQL', icon: 'Coin' },
+  { name: 'redis', displayName: 'Redis', icon: 'Grid' }
 ]
 
 // 服务加载状态
@@ -350,7 +349,6 @@ const phpCgiServices = computed<Service[]>(() => {
     name: `php-cgi-${status.version}`,
     displayName: `PHP ${status.version}`,
     icon: 'Files',
-    gradient: 'linear-gradient(135deg, #777BB4 0%, #9b8ed4 100%)',
     running: status.running,
     loading: serviceLoadingState.value[`php-cgi-${status.version}`] || false,
     version: status.version,
@@ -606,66 +604,67 @@ onActivated(async () => {
 <style lang="scss" scoped>
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .status-card {
   background: var(--bg-card);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
-  padding: 24px;
-  transition: all 0.3s;
-  
+  padding: 18px;
+  transition: border-color var(--transition-normal);
+
   &:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+    border-color: var(--accent-border);
   }
-  
+
   &.running {
-    border-color: var(--success-color);
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
+    border-color: var(--success-border);
+    background: var(--success-bg);
   }
-  
+
   .status-header {
     display: flex;
     align-items: center;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 14px;
+    margin-bottom: 16px;
   }
-  
+
   .service-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 28px;
+    font-size: 22px;
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
+    color: var(--accent-color);
   }
-  
+
   .service-info {
     .service-name {
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 600;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
   }
-  
+
   .status-actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
   }
 }
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
-  margin-bottom: 24px;
-  
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+
   &.single {
     grid-template-columns: 1fr;
   }
@@ -674,49 +673,47 @@ onActivated(async () => {
 .version-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .mini-version-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: var(--bg-input);
-  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
-  
+
   &.active {
-    border-color: var(--accent-color);
-    background: rgba(124, 58, 237, 0.05);
+    border-color: var(--accent-border);
+    background: var(--accent-bg);
   }
-  
-  .version-number {
-    font-weight: 500;
-  }
-  
+
+  .version-number { font-weight: 500; }
+
   .version-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 }
 
 .site-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .mini-site-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: var(--bg-input);
-  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
-  
+
   .site-domain-link {
     display: flex;
     align-items: center;
@@ -725,23 +722,19 @@ onActivated(async () => {
     font-family: 'Fira Code', monospace;
     color: var(--accent-color);
     text-decoration: none;
-    transition: all 0.2s;
-    
+
     .link-icon {
       font-size: 12px;
       opacity: 0;
-      transition: opacity 0.2s;
+      transition: opacity 120ms ease;
     }
-    
+
     &:hover {
       text-decoration: underline;
-      
-      .link-icon {
-        opacity: 1;
-      }
+      .link-icon { opacity: 1; }
     }
   }
-  
+
   .site-tags {
     display: flex;
     gap: 6px;
@@ -749,18 +742,16 @@ onActivated(async () => {
 }
 
 .empty-hint {
-  padding: 24px;
+  padding: 20px;
   text-align: center;
   color: var(--text-muted);
-  
+
   a {
     color: var(--accent-color);
     margin-left: 8px;
     text-decoration: none;
-    
-    &:hover {
-      text-decoration: underline;
-    }
+
+    &:hover { text-decoration: underline; }
   }
 }
 
@@ -771,24 +762,21 @@ onActivated(async () => {
   color: var(--accent-color);
   text-decoration: none;
   font-size: 13px;
-  
-  &:hover {
-    text-decoration: underline;
-  }
+
+  &:hover { text-decoration: underline; }
 }
 
 .path-display {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  background: var(--bg-input);
-  border-radius: 10px;
-  
-  .path-label {
-    color: var(--text-secondary);
-  }
-  
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  .path-label { color: var(--text-secondary); }
+
   .path-value {
     font-family: 'Fira Code', monospace;
     color: var(--accent-color);
@@ -802,49 +790,46 @@ onActivated(async () => {
 }
 
 .php-cgi-section {
-  margin-bottom: 24px;
-  
+  margin-bottom: 20px;
+
   .section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
-  
+
   .section-title {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--text-primary);
   }
-  
+
   .section-actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
   }
 }
 
 .php-cgi-card {
   .port-info {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
     font-family: 'Fira Code', monospace;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 }
 
 .php-cgi-empty {
-  margin-bottom: 24px;
-  
+  margin-bottom: 20px;
+
   a {
     color: var(--accent-color);
     text-decoration: none;
-    
-    &:hover {
-      text-decoration: underline;
-    }
+    &:hover { text-decoration: underline; }
   }
 }
 </style>

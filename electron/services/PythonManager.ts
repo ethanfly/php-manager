@@ -7,6 +7,7 @@ import https from 'https'
 import http from 'http'
 import { createWriteStream } from 'fs'
 import { sendDownloadProgress } from '../main'
+import { withPathLock } from './pathLock'
 
 const execAsync = promisify(exec)
 
@@ -562,13 +563,14 @@ export class PythonManager {
   }
 
   private async addToPath(pythonPath: string): Promise<void> {
-    try {
-      const scriptsPath = join(pythonPath, 'Scripts')
+    return withPathLock(async () => {
+      try {
+        const scriptsPath = join(pythonPath, 'Scripts')
 
-      const tempScriptPath = join(this.configStore.getTempPath(), 'add_python_path.ps1')
-      mkdirSync(this.configStore.getTempPath(), { recursive: true })
+        const tempScriptPath = join(this.configStore.getTempPath(), 'add_python_path.ps1')
+        mkdirSync(this.configStore.getTempPath(), { recursive: true })
 
-      const psScript = `
+        const psScript = `
 param([string]$PythonPath, [string]$ScriptsPath)
 
 $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
@@ -589,39 +591,49 @@ foreach ($p in $paths) {
 $allPaths = @($PythonPath, $ScriptsPath) + $filteredPaths
 $newPath = $allPaths -join ';'
 
+if ($newPath.Length -gt 1024) {
+  Write-Warning "WARNING: PATH length exceeds 1024 characters ($($newPath.Length) chars). Some paths may not work correctly."
+}
+
 [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
 Write-Host "SUCCESS: Python path added"
 `
 
-      writeFileSync(tempScriptPath, psScript, 'utf-8')
+        writeFileSync(tempScriptPath, psScript, 'utf-8')
 
-      await execAsync(
-        `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -PythonPath "${pythonPath}" -ScriptsPath "${scriptsPath}"`,
-        { windowsHide: true, timeout: 30000 }
-      )
+        const { stdout } = await execAsync(
+          `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -PythonPath "${pythonPath}" -ScriptsPath "${scriptsPath}"`,
+          { windowsHide: true, timeout: 30000 }
+        )
 
-      if (existsSync(tempScriptPath)) {
-        unlinkSync(tempScriptPath)
+        if (stdout.includes('WARNING')) {
+          console.warn('PATH length warning:', stdout.trim())
+        }
+
+        if (existsSync(tempScriptPath)) {
+          unlinkSync(tempScriptPath)
+        }
+      } catch (error: any) {
+        console.error('添加 Python 到 PATH 失败:', error)
       }
-    } catch (error: any) {
-      console.error('添加 Python 到 PATH 失败:', error)
-    }
+    })
   }
 
   private async removeFromPath(pythonPath: string): Promise<void> {
-    try {
-      const tempScriptPath = join(this.configStore.getTempPath(), 'remove_python_path.ps1')
-      mkdirSync(this.configStore.getTempPath(), { recursive: true })
+    return withPathLock(async () => {
+      try {
+        const tempScriptPath = join(this.configStore.getTempPath(), 'remove_python_path.ps1')
+        mkdirSync(this.configStore.getTempPath(), { recursive: true })
 
-      const psScript = `
+        const psScript = `
 param([string]$PythonBasePath)
 
 $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
 if ($userPath -eq $null) { exit 0 }
 
 $pythonPathLower = $PythonBasePath.ToLower()
-$paths = $userPath -split ';' | Where-Object { 
-    $_ -ne '' -and -not $_.ToLower().StartsWith($pythonPathLower)
+$paths = $userPath -split ';' | Where-Object {
+    $_ -ne '' -and $_.Trim() -ne '' -and -not $_.ToLower().StartsWith($pythonPathLower)
 }
 $newPath = $paths -join ';'
 
@@ -629,19 +641,20 @@ $newPath = $paths -join ';'
 Write-Host "SUCCESS: Python path removed"
 `
 
-      writeFileSync(tempScriptPath, psScript, 'utf-8')
+        writeFileSync(tempScriptPath, psScript, 'utf-8')
 
-      await execAsync(
-        `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -PythonBasePath "${pythonPath}"`,
-        { windowsHide: true, timeout: 30000 }
-      )
+        await execAsync(
+          `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -PythonBasePath "${pythonPath}"`,
+          { windowsHide: true, timeout: 30000 }
+        )
 
-      if (existsSync(tempScriptPath)) {
-        unlinkSync(tempScriptPath)
+        if (existsSync(tempScriptPath)) {
+          unlinkSync(tempScriptPath)
+        }
+      } catch (error: any) {
+        console.error('从 PATH 移除 Python 失败:', error)
       }
-    } catch (error: any) {
-      console.error('从 PATH 移除 Python 失败:', error)
-    }
+    })
   }
 
   private removeDirectory(dir: string): void {

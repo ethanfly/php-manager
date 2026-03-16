@@ -1,25 +1,26 @@
 <template>
-  <div class="app-container" :class="{ 'dark-mode': isDark }">
+  <div class="app-container">
     <!-- 自定义标题栏 -->
     <div class="title-bar">
       <div class="title-bar-left">
         <div class="app-logo">
           <img src="/icon.svg" alt="logo" class="logo-icon" />
-          <span class="app-name">PHPer 开发环境管理器</span>
+          <span class="app-name">PHPer</span>
         </div>
       </div>
       <div class="title-bar-right">
-        <button class="title-btn" @click="toggleDark">
-          <el-icon><Sunny v-if="isDark" /><Moon v-else /></el-icon>
+        <button class="theme-toggle" @click="toggleDark" :title="isDark ? '切换浅色' : '切换深色'">
+          <svg v-if="isDark" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <button class="title-btn" @click="minimize">
-          <el-icon><Minus /></el-icon>
+        <button class="win-btn" @click="minimize" title="最小化">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
         </button>
-        <button class="title-btn" @click="maximize">
-          <el-icon><FullScreen /></el-icon>
+        <button class="win-btn" @click="maximize" title="最大化">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="0.7" y="0.7" width="8.6" height="8.6" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
         </button>
-        <button class="title-btn close-btn" @click="close">
-          <el-icon><Close /></el-icon>
+        <button class="win-btn win-close" @click="close" title="关闭">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
         </button>
       </div>
     </div>
@@ -29,35 +30,33 @@
       <!-- 侧边栏 -->
       <aside class="sidebar">
         <nav class="nav-menu">
-          <router-link
-            v-for="item in menuItems"
-            :key="item.path"
-            :to="item.path"
-            class="nav-item"
-            :class="{ active: $route.path === item.path }">
-            <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
-            <span class="nav-label">{{ item.label }}</span>
-            <span
-              v-if="item.service"
-              class="status-dot"
-              :class="{
-                running:
-                  serviceStatus[item.service as keyof typeof serviceStatus],
-              }"></span>
-          </router-link>
+          <template v-for="(group, idx) in navGroups" :key="idx">
+            <div class="nav-group-label">{{ group.label }}</div>
+            <router-link
+              v-for="item in group.items"
+              :key="item.path"
+              :to="item.path"
+              class="nav-item"
+              :class="{ active: $route.path === item.path }"
+            >
+              <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
+              <span class="nav-label">{{ item.label }}</span>
+              <span
+                v-if="item.service"
+                class="status-dot"
+                :class="{ running: serviceStatus[item.service as keyof typeof serviceStatus] }"
+              ></span>
+            </router-link>
+          </template>
         </nav>
 
         <div class="sidebar-footer">
-          <div class="quick-actions">
-            <el-button type="success" @click="startAll" :loading="startingAll">
-              <el-icon><VideoPlay /></el-icon>
-              启动全部
-            </el-button>
-            <el-button type="danger" @click="stopAll" :loading="stoppingAll">
-              <el-icon><VideoPause /></el-icon>
-              停止全部
-            </el-button>
-          </div>
+          <button class="action-btn start-btn" :disabled="startingAll" @click="startAll">
+            ▶ 启动全部
+          </button>
+          <button class="action-btn stop-btn" :disabled="stoppingAll" @click="stopAll">
+            ■ 停止全部
+          </button>
         </div>
       </aside>
 
@@ -84,75 +83,70 @@
   const startingAll = ref(false);
   const stoppingAll = ref(false);
 
-  // 缓存的视图列表 - 避免页面切换闪烁
   const cachedViews = [
-    "Dashboard",
-    "PhpManager",
-    "MysqlManager",
-    "NginxManager",
-    "RedisManager",
-    "NodeManager",
-    "GoManager",
-    "PythonManager",
-    "GitManager",
-    "SitesManager",
-    "HostsManager",
-    "Settings",
+    "Dashboard", "PhpManager", "MysqlManager", "NginxManager",
+    "RedisManager", "NodeManager", "GoManager", "PythonManager",
+    "GitManager", "SitesManager", "HostsManager", "Settings",
   ];
 
-  // 从 store 获取服务状态
   const serviceStatus = computed(() => ({
     nginx: store.serviceStatus.nginx,
     mysql: store.serviceStatus.mysql,
     redis: store.serviceStatus.redis,
   }));
 
-  const menuItems = [
-    { path: "/", label: "仪表盘", icon: "Odometer", service: null },
-    { path: "/php", label: "PHP 管理", icon: "Files", service: null },
-    { path: "/mysql", label: "MySQL 管理", icon: "Coin", service: "mysql" },
+  const navGroups = [
     {
-      path: "/nginx",
-      label: "Nginx 管理",
-      icon: "Connection",
-      service: "nginx",
+      label: "概览",
+      items: [
+        { path: "/", label: "仪表盘", icon: "Odometer", service: null },
+      ],
     },
-    { path: "/redis", label: "Redis 管理", icon: "Grid", service: "redis" },
     {
-      path: "/nodejs",
-      label: "Node.js 管理",
-      icon: "Promotion",
-      service: null,
+      label: "语言环境",
+      items: [
+        { path: "/php", label: "PHP", icon: "Files", service: null },
+        { path: "/nodejs", label: "Node.js", icon: "Promotion", service: null },
+        { path: "/go", label: "Go", icon: "Aim", service: null },
+        { path: "/python", label: "Python", icon: "Platform", service: null },
+      ],
     },
-    { path: "/go", label: "Go 管理", icon: "Aim", service: null },
-    { path: "/python", label: "Python 管理", icon: "Platform", service: null },
-    { path: "/git", label: "Git 管理", icon: "Share", service: null },
-    { path: "/sites", label: "站点管理", icon: "Monitor", service: null },
-    { path: "/hosts", label: "Hosts 管理", icon: "Document", service: null },
-    { path: "/settings", label: "设置", icon: "Setting", service: null },
+    {
+      label: "基础服务",
+      items: [
+        { path: "/mysql", label: "MySQL", icon: "Coin", service: "mysql" },
+        { path: "/nginx", label: "Nginx", icon: "Connection", service: "nginx" },
+        { path: "/redis", label: "Redis", icon: "Grid", service: "redis" },
+        { path: "/git", label: "Git", icon: "Share", service: null },
+      ],
+    },
+    {
+      label: "管理",
+      items: [
+        { path: "/sites", label: "站点", icon: "Monitor", service: null },
+        { path: "/hosts", label: "Hosts", icon: "Document", service: null },
+        { path: "/settings", label: "设置", icon: "Setting", service: null },
+      ],
+    },
   ];
 
   let statusInterval: ReturnType<typeof setInterval> | null = null;
 
-  // 窗口控制
   const minimize = () => window.electronAPI?.minimize();
   const maximize = () => window.electronAPI?.maximize();
   const close = () => window.electronAPI?.close();
 
-  // 主题切换
   const toggleDark = () => {
     isDark.value = !isDark.value;
     document.documentElement.classList.toggle("dark", isDark.value);
   };
 
-  // 启动所有服务
   const startAll = async () => {
     startingAll.value = true;
     try {
       const result = await window.electronAPI?.service.startAll();
       if (result?.success) {
         ElMessage.success(result.message);
-        // 延迟刷新状态，等待服务启动
         setTimeout(() => store.refreshServiceStatus(), 2000);
       } else {
         ElMessage.error(result?.message || "启动失败");
@@ -164,7 +158,6 @@
     }
   };
 
-  // 停止所有服务
   const stopAll = async () => {
     stoppingAll.value = true;
     try {
@@ -184,16 +177,12 @@
 
   onMounted(() => {
     document.documentElement.classList.add("dark");
-    // 初始化加载所有状态
     store.refreshAll();
-    // 每 5 秒刷新一次状态
     statusInterval = setInterval(() => store.refreshServiceStatus(), 5000);
   });
 
   onUnmounted(() => {
-    if (statusInterval) {
-      clearInterval(statusInterval);
-    }
+    if (statusInterval) clearInterval(statusInterval);
   });
 </script>
 
@@ -208,21 +197,77 @@
     overflow: hidden;
   }
 
-  .title-bar {
-    height: 40px;
+  // ==================== Title Bar Right ====================
+  .title-bar-right {
     display: flex;
-    justify-content: space-between;
+    align-items: stretch;
+    -webkit-app-region: no-drag;
+    flex-shrink: 0;
+  }
+
+  .theme-toggle {
+    width: 38px;
+    height: 38px;
+    display: flex;
     align-items: center;
-    background: var(--bg-titlebar);
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border-color);
+    color: var(--text-muted);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    padding: 0;
+    outline: none;
+
+    &:hover { background: var(--bg-hover); color: var(--text-primary); }
+  }
+
+  .win-btn {
+    width: 46px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--border-color);
+    color: var(--text-muted);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    padding: 0;
+    outline: none;
+
+    svg { transition: color 80ms ease; }
+
+    &:hover { background: var(--bg-hover); color: var(--text-primary); }
+  }
+
+  .win-close {
+    &:hover { background: #e81123 !important; color: #fff !important; }
+  }
+
+  // ==================== Title Bar Layout ====================
+  .title-bar {
+    height: 38px;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    background: var(--bg-sidebar);
     border-bottom: 1px solid var(--border-color);
     -webkit-app-region: drag;
-    padding: 0 12px;
+    padding-left: 14px;
+    flex-shrink: 0;
+    user-select: none;
   }
 
   .title-bar-left {
     display: flex;
     align-items: center;
-    gap: 12px;
   }
 
   .app-logo {
@@ -231,79 +276,65 @@
     gap: 8px;
 
     .logo-icon {
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
     }
 
     .app-name {
-      font-size: 14px;
-      font-weight: 600;
+      font-size: 12.5px;
+      font-weight: 700;
       color: var(--text-primary);
-      font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0.02em;
     }
   }
 
-  .title-bar-right {
-    display: flex;
-    gap: 4px;
-    -webkit-app-region: no-drag;
-  }
-
-  .title-btn {
-    width: 36px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-
-    &:hover {
-      background: var(--bg-hover);
-      color: var(--text-primary);
-    }
-
-    &.close-btn:hover {
-      background: #e81123;
-      color: white;
-    }
-  }
-
+  // ==================== Layout ====================
   .main-container {
     flex: 1;
     display: flex;
     overflow: hidden;
   }
 
+  // ==================== Sidebar ====================
   .sidebar {
-    width: 220px;
+    width: 200px;
+    min-width: 200px;
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    padding: 16px 12px;
+    flex-shrink: 0;
+    overflow: hidden;
   }
 
   .nav-menu {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    overflow-y: auto;
+    padding: 10px 8px;
+  }
+
+  .nav-group-label {
+    padding: 14px 10px 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
   }
 
   .nav-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-radius: 10px;
+    gap: 8px;
+    padding: 7px 10px;
+    margin-bottom: 1px;
+    border-radius: var(--radius-sm);
     text-decoration: none;
     color: var(--text-secondary);
-    transition: all 0.2s;
+    font-size: 13px;
+    font-weight: 450;
+    border: 1px solid transparent;
+    transition: all 120ms ease;
 
     &:hover {
       background: var(--bg-hover);
@@ -311,71 +342,81 @@
     }
 
     &.active {
-      background: var(--accent-gradient);
-      color: white;
-      box-shadow: 0 4px 12px rgba(123, 97, 255, 0.3);
+      color: var(--accent-color);
+      background: var(--accent-bg);
+      border-color: var(--accent-border);
 
-      .status-dot {
-        border-color: rgba(255, 255, 255, 0.3);
-      }
+      .nav-icon { color: var(--accent-color); }
+      .status-dot { border-color: var(--bg-sidebar); }
     }
 
     .nav-icon {
-      font-size: 20px;
+      font-size: 16px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      transition: color 120ms ease;
     }
 
-    .nav-label {
-      font-size: 14px;
-      font-weight: 500;
-      flex: 1;
-    }
+    &:hover .nav-icon { color: var(--text-secondary); }
+
+    .nav-label { flex: 1; white-space: nowrap; }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: #6b7280;
-      border: 2px solid var(--bg-sidebar);
-      transition: all 0.3s;
+      background: var(--text-muted);
+      border: 1.5px solid var(--bg-sidebar);
+      flex-shrink: 0;
+      transition: all var(--transition-normal);
 
       &.running {
-        background: #10b981;
-        box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        background: var(--success-color);
+        box-shadow: 0 0 6px rgba(52, 211, 153, 0.4);
       }
     }
   }
 
+  // ==================== Content ====================
+  // ==================== Sidebar Footer ====================
   .sidebar-footer {
-    padding-top: 16px;
+    padding: 8px;
     border-top: 1px solid var(--border-color);
-  }
-
-  .quick-actions {
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 0 12px;
-
-    :deep(.el-button) {
-      width: 100% !important;
-      height: 40px !important;
-      min-width: 100% !important;
-      max-width: 100% !important;
-      font-size: 14px !important;
-      justify-content: center !important;
-      border-radius: 8px !important;
-      padding: 0 16px !important;
-      margin-left: 0 !important;
-    }
-
-    :deep(.el-button + .el-button) {
-      margin-left: 0 !important;
-    }
+    gap: 4px;
   }
 
+  .action-btn {
+    display: block;
+    width: 100%;
+    height: 30px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    padding: 0;
+    outline: none;
+    transition: all 120ms ease;
+    text-align: center;
+    line-height: 28px;
+
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+    &.start-btn:hover:not(:disabled) { border-color: var(--success-border); color: var(--success-color); background: var(--success-bg); }
+    &.stop-btn:hover:not(:disabled) { border-color: var(--error-border); color: var(--error-color); background: var(--error-bg); }
+  }
+
+  // ==================== Content ====================
   .content {
     flex: 1;
-    padding: 24px;
+    padding: 24px 28px;
     overflow-y: auto;
     background: var(--bg-content);
   }

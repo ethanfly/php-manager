@@ -48,7 +48,7 @@
             :class="{ enabled: site.enabled }"
           >
             <div class="site-header">
-              <div class="site-icon" :class="{ laravel: site.isLaravel }">
+              <div class="site-icon">
                 <el-icon v-if="site.isLaravel"><Promotion /></el-icon>
                 <el-icon v-else><Monitor /></el-icon>
               </div>
@@ -911,19 +911,16 @@ onMounted(() => {
   }
   
   .site-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    background: var(--accent-gradient);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 24px;
-    
-    &.laravel {
-      background: linear-gradient(135deg, #ff2d20 0%, #ff6b6b 100%);
-    }
+    color: var(--accent-color);
+    font-size: 20px;
   }
   
   .site-main {

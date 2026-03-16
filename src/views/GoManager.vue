@@ -42,7 +42,7 @@
             :class="{ active: version.isActive }">
             <div class="version-main">
               <div class="version-icon">
-                <el-icon :size="32"><Aim /></el-icon>
+                <el-icon><Aim /></el-icon>
               </div>
               <div class="version-content">
                 <div class="version-title">
@@ -54,6 +54,9 @@
                     effect="dark"
                     >当前版本</el-tag
                   >
+                </div>
+                <div class="version-meta">
+                  <span class="version-path">{{ version.path }}</span>
                 </div>
               </div>
             </div>
@@ -312,16 +315,8 @@
     }
 
     &.active {
-      border-color: var(--success-color);
-      background: linear-gradient(
-        135deg,
-        rgba(16, 185, 129, 0.08) 0%,
-        rgba(16, 185, 129, 0.02) 100%
-      );
-
-      .version-icon {
-        background: linear-gradient(135deg, #00add8 0%, #00add8 100%);
-      }
+      border-color: var(--accent-border);
+      background: var(--accent-bg);
     }
 
     .version-main {
@@ -331,15 +326,17 @@
     }
 
     .version-icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, #00add8 0%, #00add8 100%);
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--accent-bg);
+      border: 1px solid var(--accent-border);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
+      color: var(--accent-color);
       flex-shrink: 0;
+      font-size: 20px;
     }
 
     .version-content {
@@ -360,6 +357,18 @@
       font-weight: 700;
       color: var(--text-primary);
       letter-spacing: -0.5px;
+    }
+
+    .version-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .version-path {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'Fira Code', 'Consolas', monospace;
     }
 
     .version-actions {

@@ -8,6 +8,7 @@ import http from 'http'
 import { createWriteStream } from 'fs'
 import unzipper from 'unzipper'
 import { sendDownloadProgress } from '../main'
+import { withPathLock } from './pathLock'
 
 const execAsync = promisify(exec)
 
@@ -404,46 +405,58 @@ export class NodeManager {
   }
 
   private async addToPath(nodePath: string): Promise<void> {
-    // 使用 PowerShell 更新用户 PATH
-    const psScript = `
-$ErrorActionPreference = 'Stop'
-$newPath = '${nodePath.replace(/\\/g, '\\\\')}'
+    return withPathLock(async () => {
+      // 使用 param() 传递路径，防止特殊字符破坏脚本
+      const psScript = `
+param([string]$NewNodePath)
 
-# Get current user PATH
-$currentPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$pathArray = $currentPath -split ';' | Where-Object { $_ -ne '' }
+$ErrorActionPreference = 'Stop'
+
+$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+if ($userPath -eq $null) { $userPath = '' }
+
+$pathArray = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.Trim() -ne '' }
 
 # Remove existing Node.js paths (from this manager and common locations)
-$filteredPaths = $pathArray | Where-Object { 
+$filteredPaths = $pathArray | Where-Object {
   $p = $_.ToLower()
-  -not ($p -like '*\\node-v*' -or 
-        $p -like '*\\nodejs*' -or 
+  -not ($p -like '*\\node-v*' -or
+        $p -like '*\\nodejs*' -or
         $p -like '*phper-dev-manager*node*' -or
         $p -like '*\\nvm\\*')
 }
 
 # Add new path at the beginning
-$newPathArray = @($newPath) + $filteredPaths
-
-# Join and set
+$newPathArray = @($NewNodePath) + $filteredPaths
 $finalPath = ($newPathArray | Select-Object -Unique) -join ';'
-[Environment]::SetEnvironmentVariable('Path', $finalPath, 'User')
 
+if ($finalPath.Length -gt 1024) {
+  Write-Warning "WARNING: PATH length exceeds 1024 characters ($($finalPath.Length) chars). Some paths may not work correctly."
+}
+
+[Environment]::SetEnvironmentVariable('Path', $finalPath, 'User')
 Write-Output "PATH updated successfully"
 `
 
-    const tempPs1 = join(this.configStore.getTempPath(), 'update_node_path.ps1')
-    writeFileSync(tempPs1, psScript, 'utf-8')
+      const tempPs1 = join(this.configStore.getTempPath(), 'update_node_path.ps1')
+      writeFileSync(tempPs1, psScript, 'utf-8')
 
-    try {
-      await execAsync(`powershell -ExecutionPolicy Bypass -File "${tempPs1}"`, { timeout: 30000 })
-    } finally {
       try {
-        unlinkSync(tempPs1)
-      } catch (e) {
-        // 忽略
+        const { stdout } = await execAsync(
+          `powershell -ExecutionPolicy Bypass -File "${tempPs1}" -NewNodePath "${nodePath}"`,
+          { timeout: 30000 }
+        )
+        if (stdout.includes('WARNING')) {
+          console.warn('PATH length warning:', stdout.trim())
+        }
+      } finally {
+        try {
+          unlinkSync(tempPs1)
+        } catch (e) {
+          // 忽略
+        }
       }
-    }
+    })
   }
 
   private getFallbackVersions(): AvailableNodeVersion[] {

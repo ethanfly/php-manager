@@ -7,6 +7,7 @@ import https from 'https'
 import http from 'http'
 import { createWriteStream } from 'fs'
 import { sendDownloadProgress } from '../main'
+import { withPathLock } from './pathLock'
 
 const execAsync = promisify(exec)
 
@@ -354,15 +355,16 @@ export class GitManager {
   }
 
   private async addToPath(): Promise<void> {
-    try {
-      const gitPath = this.getGitPath()
-      const cmdPath = join(gitPath, 'cmd')
-      const binPath = join(gitPath, 'bin')
+    return withPathLock(async () => {
+      try {
+        const gitPath = this.getGitPath()
+        const cmdPath = join(gitPath, 'cmd')
+        const binPath = join(gitPath, 'bin')
 
-      const tempScriptPath = join(this.configStore.getTempPath(), 'add_git_path.ps1')
-      mkdirSync(this.configStore.getTempPath(), { recursive: true })
+        const tempScriptPath = join(this.configStore.getTempPath(), 'add_git_path.ps1')
+        mkdirSync(this.configStore.getTempPath(), { recursive: true })
 
-      const psScript = `
+        const psScript = `
 param([string]$CmdPath, [string]$BinPath)
 
 $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
@@ -370,11 +372,16 @@ if ($userPath -eq $null) { $userPath = '' }
 
 $paths = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.Trim() -ne '' }
 
-# 移除旧的 Git 路径
+# 移除旧的 Git 路径（更精确的匹配，防止误删 digit 等非 Git 路径）
 $filteredPaths = @()
 foreach ($p in $paths) {
     $pathLower = $p.ToLower()
-    if (-not ($pathLower -like '*\\git\\*' -or $pathLower -like '*\\git-*')) {
+    if ($pathLower -like '*\\git\\cmd*' -or
+        $pathLower -like '*\\git\\bin*' -or
+        $pathLower -like '*\\git-*' -or
+        $pathLower.EndsWith('\\git')) {
+        Write-Host "Removing old Git path: $p"
+    } else {
         $filteredPaths += $p
     }
 }
@@ -383,41 +390,51 @@ foreach ($p in $paths) {
 $allPaths = @($CmdPath, $BinPath) + $filteredPaths
 $newPath = $allPaths -join ';'
 
+if ($newPath.Length -gt 1024) {
+  Write-Warning "WARNING: PATH length exceeds 1024 characters ($($newPath.Length) chars). Some paths may not work correctly."
+}
+
 [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
 Write-Host "SUCCESS: Git path added"
 `
 
-      writeFileSync(tempScriptPath, psScript, 'utf-8')
+        writeFileSync(tempScriptPath, psScript, 'utf-8')
 
-      await execAsync(
-        `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -CmdPath "${cmdPath}" -BinPath "${binPath}"`,
-        { windowsHide: true, timeout: 30000 }
-      )
+        const { stdout } = await execAsync(
+          `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -CmdPath "${cmdPath}" -BinPath "${binPath}"`,
+          { windowsHide: true, timeout: 30000 }
+        )
 
-      if (existsSync(tempScriptPath)) {
-        unlinkSync(tempScriptPath)
+        if (stdout.includes('WARNING')) {
+          console.warn('PATH length warning:', stdout.trim())
+        }
+
+        if (existsSync(tempScriptPath)) {
+          unlinkSync(tempScriptPath)
+        }
+      } catch (error: any) {
+        console.error('添加 Git 到 PATH 失败:', error)
       }
-    } catch (error: any) {
-      console.error('添加 Git 到 PATH 失败:', error)
-    }
+    })
   }
 
   private async removeFromPath(): Promise<void> {
-    try {
-      const gitPath = this.getGitPath()
+    return withPathLock(async () => {
+      try {
+        const gitPath = this.getGitPath()
 
-      const tempScriptPath = join(this.configStore.getTempPath(), 'remove_git_path.ps1')
-      mkdirSync(this.configStore.getTempPath(), { recursive: true })
+        const tempScriptPath = join(this.configStore.getTempPath(), 'remove_git_path.ps1')
+        mkdirSync(this.configStore.getTempPath(), { recursive: true })
 
-      const psScript = `
+        const psScript = `
 param([string]$GitBasePath)
 
 $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
 if ($userPath -eq $null) { exit 0 }
 
 $gitPathLower = $GitBasePath.ToLower()
-$paths = $userPath -split ';' | Where-Object { 
-    $_ -ne '' -and -not $_.ToLower().StartsWith($gitPathLower)
+$paths = $userPath -split ';' | Where-Object {
+    $_ -ne '' -and $_.Trim() -ne '' -and -not $_.ToLower().StartsWith($gitPathLower)
 }
 $newPath = $paths -join ';'
 
@@ -425,19 +442,20 @@ $newPath = $paths -join ';'
 Write-Host "SUCCESS: Git path removed"
 `
 
-      writeFileSync(tempScriptPath, psScript, 'utf-8')
+        writeFileSync(tempScriptPath, psScript, 'utf-8')
 
-      await execAsync(
-        `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -GitBasePath "${gitPath}"`,
-        { windowsHide: true, timeout: 30000 }
-      )
+        await execAsync(
+          `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -GitBasePath "${gitPath}"`,
+          { windowsHide: true, timeout: 30000 }
+        )
 
-      if (existsSync(tempScriptPath)) {
-        unlinkSync(tempScriptPath)
+        if (existsSync(tempScriptPath)) {
+          unlinkSync(tempScriptPath)
+        }
+      } catch (error: any) {
+        console.error('从 PATH 移除 Git 失败:', error)
       }
-    } catch (error: any) {
-      console.error('从 PATH 移除 Git 失败:', error)
-    }
+    })
   }
 
   private removeDirectory(dir: string): void {

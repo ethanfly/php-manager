@@ -36,7 +36,7 @@
           >
             <div class="version-main">
               <div class="version-icon">
-                <el-icon :size="32"><Promotion /></el-icon>
+                <el-icon><Promotion /></el-icon>
               </div>
               <div class="version-content">
                 <div class="version-title">
@@ -48,6 +48,7 @@
                     <el-icon><Box /></el-icon>
                     npm {{ version.npmVersion }}
                   </span>
+                  <span class="version-path">{{ version.path }}</span>
                 </div>
               </div>
             </div>
@@ -314,12 +315,8 @@ onUnmounted(() => {
   }
   
   &.active {
-    border-color: var(--success-color);
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%);
-    
-    .version-icon {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    }
+    border-color: var(--accent-border);
+    background: var(--accent-bg);
   }
   
   .version-main {
@@ -329,15 +326,17 @@ onUnmounted(() => {
   }
   
   .version-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #68a063 0%, #3c873a 100%);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--accent-color);
     flex-shrink: 0;
+    font-size: 20px;
   }
   
   .version-content {
@@ -376,12 +375,18 @@ onUnmounted(() => {
     background: var(--bg-card);
     padding: 4px 10px;
     border-radius: 6px;
-    
+
     .el-icon {
       color: #cb3837;
     }
   }
-  
+
+  .version-path {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'Fira Code', 'Consolas', monospace;
+  }
+
   .version-actions {
     display: flex;
     gap: 10px;

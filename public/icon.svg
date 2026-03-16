@@ -1,48 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4F46E5"/>
-      <stop offset="100%" style="stop-color:#7C3AED"/>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#0f766e"/>
     </linearGradient>
-    <linearGradient id="phpGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#8B9CF4"/>
-      <stop offset="100%" style="stop-color:#A78BFA"/>
+    <linearGradient id="el" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5eead4"/>
+      <stop offset="100%" stop-color="#2dd4bf"/>
     </linearGradient>
   </defs>
-  
-  <!-- 紫色渐变背景圆角矩形 -->
-  <rect x="4" y="4" width="120" height="120" rx="20" ry="20" fill="url(#bgGrad)"/>
-  
-  <!-- PHP 大象 -->
-  <g transform="translate(18, 18) scale(0.72)">
-    <!-- 大象身体 -->
-    <ellipse cx="65" cy="58" rx="42" ry="32" fill="url(#phpGrad)"/>
-    
-    <!-- 大象头部 -->
-    <circle cx="32" cy="45" r="24" fill="url(#phpGrad)"/>
-    
-    <!-- 大象鼻子 -->
-    <path d="M14 52 Q6 68 12 82 Q16 90 22 86 Q26 82 24 72 Q22 62 20 52" 
-          fill="url(#phpGrad)" stroke="#6366F1" stroke-width="1"/>
-    
-    <!-- 大象耳朵 -->
-    <ellipse cx="46" cy="28" rx="14" ry="18" fill="#A78BFA"/>
-    
+
+  <!-- 圆角方形背景 -->
+  <rect x="2" y="2" width="124" height="124" rx="28" ry="28" fill="url(#bg)"/>
+
+  <!-- PHP elephant (simplified, modern) -->
+  <g transform="translate(16, 16) scale(0.76)">
+    <!-- 身体 -->
+    <ellipse cx="64" cy="56" rx="40" ry="28" fill="url(#el)" opacity="0.95"/>
+    <!-- 头 -->
+    <circle cx="34" cy="42" r="22" fill="url(#el)" opacity="0.95"/>
+    <!-- 耳朵 -->
+    <ellipse cx="48" cy="24" rx="12" ry="16" fill="#2dd4bf" opacity="0.7"/>
     <!-- 眼睛 -->
-    <circle cx="27" cy="40" r="4" fill="#1E1B4B"/>
-    <circle cx="28" cy="39" r="1.5" fill="#fff"/>
-    
-    <!-- 大象腿 -->
-    <rect x="38" y="78" width="11" height="22" rx="5" fill="url(#phpGrad)"/>
-    <rect x="55" y="78" width="11" height="22" rx="5" fill="url(#phpGrad)"/>
-    <rect x="72" y="78" width="11" height="20" rx="5" fill="url(#phpGrad)"/>
-    <rect x="88" y="78" width="11" height="18" rx="5" fill="url(#phpGrad)"/>
-    
+    <circle cx="28" cy="38" r="3.5" fill="#0f766e"/>
+    <circle cx="29" cy="37" r="1.2" fill="#fff"/>
+    <!-- 鼻子 -->
+    <path d="M15 48 Q8 62 13 74 Q17 82 22 78 Q26 72 24 64 Q22 56 20 48" fill="url(#el)" opacity="0.95"/>
+    <!-- 腿 -->
+    <rect x="38" y="74" width="10" height="20" rx="4" fill="url(#el)" opacity="0.9"/>
+    <rect x="54" y="74" width="10" height="20" rx="4" fill="url(#el)" opacity="0.9"/>
+    <rect x="70" y="74" width="10" height="18" rx="4" fill="url(#el)" opacity="0.9"/>
+    <rect x="86" y="74" width="10" height="16" rx="4" fill="url(#el)" opacity="0.9"/>
     <!-- 尾巴 -->
-    <path d="M105 52 Q116 48 114 62 Q112 70 108 66" 
-          fill="none" stroke="url(#phpGrad)" stroke-width="5" stroke-linecap="round"/>
+    <path d="M102 48 Q112 44 110 56 Q114 64 108 60" fill="none" stroke="url(#el)" stroke-width="4.5" stroke-linecap="round" opacity="0.8"/>
   </g>
-  
+
   <!-- PHP 文字 -->
-  <text x="64" y="116" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="18" fill="#fff" opacity="0.95">PHP</text>
+  <text x="64" y="114" text-anchor="middle" font-family="'SF Pro Display', 'Inter', Arial, sans-serif" font-weight="700" font-size="17" fill="#ffffff" opacity="0.9" letter-spacing="1">PHP</text>
 </svg>
