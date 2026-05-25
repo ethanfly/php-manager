@@ -638,15 +638,19 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
         // 忽略删除失败（可能任务不存在）
       }
 
-      // 创建 VBS 启动脚本（确保静默启动）
-      const appDir = require("path").dirname(exePath);
-      const vbsPath = join(appDir, "silent_start.vbs");
-      const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run """${exePath.replace(/\\/g, "\\\\")}""", 0, False`;
-      writeFileSync(vbsPath, vbsContent);
+      // 创建 VBS 启动脚本（放在 userData 目录，避免被卸载程序删除/权限问题）
+      const userDataDir = app.getPath("userData");
+      if (!existsSync(userDataDir)) {
+        require("fs").mkdirSync(userDataDir, { recursive: true });
+      }
+      const vbsPath = join(userDataDir, "silent_start.vbs");
+      // VBS 字符串里需要把 " 转义为 ""，反斜杠保持原样即可
+      const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\r\nWshShell.Run "" & Chr(34) & "${exePath}" & Chr(34), 0, False\r\n`;
+      writeFileSync(vbsPath, vbsContent, "utf8");
 
       // 验证 VBS 文件写入成功
       if (!existsSync(vbsPath)) {
-        throw new Error("VBS 启动脚本写入失败");
+        throw new Error(`VBS 启动脚本写入失败: ${vbsPath}`);
       }
 
       // 创建任务计划程序任务，运行 VBS 脚本实现静默启动
@@ -666,15 +670,23 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
         // 忽略删除失败
       }
 
-      // 删除 VBS 脚本
-      const appDir = require("path").dirname(exePath);
-      const vbsPath = join(appDir, "silent_start.vbs");
+      // 删除 VBS 脚本（userData 目录）
+      const userDataDir = app.getPath("userData");
+      const vbsPath = join(userDataDir, "silent_start.vbs");
       if (existsSync(vbsPath)) {
         try {
           unlinkSync(vbsPath);
         } catch (e) {
           // 忽略删除失败
         }
+      }
+
+      // 兼容清理：删除旧版本可能残留在安装目录下的 VBS 文件
+      try {
+        const legacyVbs = join(require("path").dirname(exePath), "silent_start.vbs");
+        if (existsSync(legacyVbs)) unlinkSync(legacyVbs);
+      } catch (e) {
+        // 忽略
       }
 
       configStore.set("autoLaunch", false);
@@ -708,9 +720,7 @@ ipcMain.handle("app:getAutoLaunch", async () => {
     });
 
     // 计划任务存在，验证 VBS 文件是否还存在
-    const exePath = app.getPath("exe");
-    const appDir = require("path").dirname(exePath);
-    const vbsPath = join(appDir, "silent_start.vbs");
+    const vbsPath = join(app.getPath("userData"), "silent_start.vbs");
 
     if (!existsSync(vbsPath)) {
       // VBS 文件丢失，清理孤立的计划任务

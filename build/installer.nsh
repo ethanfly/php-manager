@@ -17,8 +17,11 @@
   ; 清理开机自启计划任务
   nsExec::ExecToLog 'schtasks /delete /tn "PHPerDevManager" /f'
 
-  ; 删除 VBS 静默启动脚本
+  ; 删除 VBS 静默启动脚本（兼容旧版本安装目录下的残留）
   Delete "$INSTDIR\silent_start.vbs"
+
+  ; 删除 userData 目录下的 VBS 静默启动脚本（新版本路径，userData 使用 productName）
+  Delete "$APPDATA\PHPer开发环境管理器\silent_start.vbs"
 
   ; 删除 Startup 目录下的服务自启脚本
   Delete "$APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\phper-*.bat"
