@@ -622,9 +622,9 @@ ipcMain.handle("config:setBasePath", (_, path: string) =>
 // ==================== 应用设置 ====================
 // 设置开机自启（以管理员模式，使用任务计划程序，静默启动）
 ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
-  const { execSync, exec } = require("child_process");
+  const { execSync } = require("child_process");
   const { writeFileSync, unlinkSync, existsSync } = require("fs");
-  const { join } = require("path");
+  const { join, dirname } = require("path");
   const exePath = app.getPath("exe");
   const taskName = "PHPerDevManager";
 
@@ -648,19 +648,47 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
         // 忽略删除失败（可能任务不存在）
       }
 
-      // 创建 VBS 启动脚本（放在 userData 目录，避免被卸载程序删除/权限问题）
-      const userDataDir = app.getPath("userData");
-      if (!existsSync(userDataDir)) {
-        require("fs").mkdirSync(userDataDir, { recursive: true });
+      // 创建 VBS 启动脚本（放在 exe 同级目录，跟随应用移动，避免硬编码绝对路径失效）
+      const exeDir = dirname(exePath);
+      const vbsPath = join(exeDir, "silent_start.vbs");
+
+      // 获取 exe 的短路径（8.3 格式），避免中文字符和空格导致的编码/解析问题
+      let targetExePath = exePath;
+      try {
+        const shortPathCmd = `cmd /c for %A in ("${exePath}") do @echo %~sA`;
+        const shortPath = execSync(shortPathCmd, {
+          encoding: "utf8",
+          windowsHide: true,
+        }).trim();
+        if (shortPath && existsSync(shortPath)) {
+          targetExePath = shortPath;
+        }
+      } catch (e) {
+        console.warn("获取短路径失败，使用原始路径:", e);
       }
-      const vbsPath = join(userDataDir, "silent_start.vbs");
-      // VBS 字符串里需要把 " 转义为 ""，反斜杠保持原样即可
-      const vbsContent = `Set WshShell = CreateObject("WScript.Shell")\r\nWshShell.Run "" & Chr(34) & "${exePath}" & Chr(34), 0, False\r\n`;
-      writeFileSync(vbsPath, vbsContent, "utf8");
+
+      const vbsContent = `Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run Chr(34) & "${targetExePath}" & Chr(34), 0, False
+`;
+
+      // 使用 UTF-16 LE 带 BOM 编码写入，彻底避免中文编码问题
+      const contentBuffer = Buffer.from(vbsContent, "utf16le");
+      const bom = Buffer.from([0xff, 0xfe]);
+      writeFileSync(vbsPath, Buffer.concat([bom, contentBuffer]));
 
       // 验证 VBS 文件写入成功
       if (!existsSync(vbsPath)) {
         throw new Error(`VBS 启动脚本写入失败: ${vbsPath}`);
+      }
+
+      // 清理旧版本可能残留在 userData 目录的 VBS（避免遗留垃圾文件）
+      try {
+        const oldVbsPath = join(app.getPath("userData"), "silent_start.vbs");
+        if (existsSync(oldVbsPath)) {
+          unlinkSync(oldVbsPath);
+        }
+      } catch (e) {
+        // 忽略清理失败
       }
 
       // 创建任务计划程序任务，运行 VBS 脚本实现静默启动
@@ -680,9 +708,9 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
         // 忽略删除失败
       }
 
-      // 删除 VBS 脚本（userData 目录）
-      const userDataDir = app.getPath("userData");
-      const vbsPath = join(userDataDir, "silent_start.vbs");
+      // 删除 VBS 脚本（exe 同级目录）
+      const exeDir = dirname(exePath);
+      const vbsPath = join(exeDir, "silent_start.vbs");
       if (existsSync(vbsPath)) {
         try {
           unlinkSync(vbsPath);
@@ -691,10 +719,12 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
         }
       }
 
-      // 兼容清理：删除旧版本可能残留在安装目录下的 VBS 文件
+      // 兼容清理：删除旧版本可能残留在 userData 目录的 VBS 文件
       try {
-        const legacyVbs = join(require("path").dirname(exePath), "silent_start.vbs");
-        if (existsSync(legacyVbs)) unlinkSync(legacyVbs);
+        const oldVbsPath = join(app.getPath("userData"), "silent_start.vbs");
+        if (existsSync(oldVbsPath)) {
+          unlinkSync(oldVbsPath);
+        }
       } catch (e) {
         // 忽略
       }
@@ -715,7 +745,7 @@ ipcMain.handle("app:setAutoLaunch", async (_, enabled: boolean) => {
 ipcMain.handle("app:getAutoLaunch", async () => {
   const { execSync } = require("child_process");
   const { existsSync, unlinkSync } = require("fs");
-  const { join } = require("path");
+  const { join, dirname } = require("path");
   const taskName = "PHPerDevManager";
 
   // 开发模式下返回 false
@@ -729,8 +759,9 @@ ipcMain.handle("app:getAutoLaunch", async () => {
       windowsHide: true,
     });
 
-    // 计划任务存在，验证 VBS 文件是否还存在
-    const vbsPath = join(app.getPath("userData"), "silent_start.vbs");
+    // 计划任务存在，验证 VBS 文件是否还存在（exe 同级目录）
+    const exePath = app.getPath("exe");
+    const vbsPath = join(dirname(exePath), "silent_start.vbs");
 
     if (!existsSync(vbsPath)) {
       // VBS 文件丢失，清理孤立的计划任务
