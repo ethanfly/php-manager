@@ -80,7 +80,11 @@ if ($null -eq $p) { '' } else { $p }
         JSON.stringify(entries.filter((e) => e && e.trim())),
         "utf-8"
       );
-      writeFileSync(scriptPath, script, "utf-8");
+      // 关键：脚本含中文注释/字符串，必须写成 UTF-8 with BOM。
+      // Windows PowerShell 5.1 对无 BOM 的 .ps1 默认按系统代码页（中文系统为
+      // GBK/936）解码，中文会被错解导致 ParserError（UnexpectedToken } 等）。
+      // 加上 BOM 后 PowerShell 会正确按 UTF-8 解码。
+      writeFileSync(scriptPath, "﻿" + script, "utf-8");
 
       try {
         const { stdout, stderr } = await execAsync(
@@ -167,6 +171,12 @@ param(
   [string]$BackupFile = ''
 )
 $ErrorActionPreference = 'Stop'
+# 让本脚本的 stdout/stderr 以 UTF-8 输出，避免被 Node execAsync 按 UTF-8
+# 解码时出现乱码（默认中文系统下 PowerShell 控制台输出是 GBK）。
+try {
+  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+  $OutputEncoding = [System.Text.Encoding]::UTF8
+} catch {}
 
 # 1. 读取当前用户 PATH（GetEnvironmentVariable 已展开 %VAR%）
 $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
