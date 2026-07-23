@@ -70,6 +70,12 @@ const router = createRouter({
       meta: { title: "Python 管理" },
     },
     {
+      path: "/rust",
+      name: "rust",
+      component: () => import("@/views/RustManager.vue"),
+      meta: { title: "Rust 管理" },
+    },
+    {
       path: "/settings",
       name: "settings",
       component: () => import("@/views/Settings.vue"),

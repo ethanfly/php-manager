@@ -11,10 +11,12 @@ interface ConfigSchema {
   redisVersions: string[];
   nodeVersions: string[];
   goVersions: string[];
+  rustVersions: string[];
   activePhpVersion: string;
   activeNodeVersion: string;
   activeGoVersion: string;
   activePythonVersion: string;
+  activeRustVersion: string;
   // 活动版本若为系统安装的全局工具，记录其 exe 所在目录（托管的为空）。
   // 供 getActivePhpPath 等 helper 解析"当前活动工具路径"，避免 set 全局为默认后
   // 托管目录解析失败。
@@ -22,6 +24,7 @@ interface ConfigSchema {
   activeNodePath: string;
   activeGoPath: string;
   activePythonPath: string;
+  activeRustPath: string;
   autoStart: {
     nginx: boolean;
     mysql: boolean;
@@ -77,14 +80,17 @@ export class ConfigStore {
         redisVersions: [],
         nodeVersions: [],
         goVersions: [],
+        rustVersions: [],
         activePhpVersion: "",
         activeNodeVersion: "",
         activeGoVersion: "",
         activePythonVersion: "",
+        activeRustVersion: "",
         activePhpPath: "",
         activeNodePath: "",
         activeGoPath: "",
         activePythonPath: "",
+        activeRustPath: "",
         autoStart: {
           nginx: false,
           mysql: false,
@@ -117,6 +123,7 @@ export class ConfigStore {
       join(this.basePath, "redis"),
       join(this.basePath, "nodejs"),
       join(this.basePath, "go"),
+      join(this.basePath, "rust"),
       join(this.basePath, "logs"),
       join(this.basePath, "temp"),
       join(this.basePath, "www"),
@@ -185,6 +192,15 @@ export class ConfigStore {
   getActiveGoPath(): string {
     const p = this.store.get("activeGoPath");
     return p ? p : this.getGoPath();
+  }
+
+  getRustPath(): string {
+    return join(this.basePath, "rust");
+  }
+
+  getActiveRustPath(): string {
+    const p = this.store.get("activeRustPath");
+    return p ? p : this.getRustPath();
   }
 
   // Python 托管根目录与活动解析（与 Node/Go/PHP 对称）

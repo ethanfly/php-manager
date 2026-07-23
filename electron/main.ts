@@ -24,6 +24,7 @@ import { NginxManager } from "./services/NginxManager";
 import { RedisManager } from "./services/RedisManager";
 import { NodeManager } from "./services/NodeManager";
 import { GoManager } from "./services/GoManager";
+import { RustManager } from "./services/RustManager";
 import { ServiceManager } from "./services/ServiceManager";
 import { HostsManager } from "./services/HostsManager";
 import { GitManager } from "./services/GitManager";
@@ -129,6 +130,7 @@ const nginxManager = new NginxManager(configStore);
 const redisManager = new RedisManager(configStore);
 const nodeManager = new NodeManager(configStore);
 const goManager = new GoManager(configStore);
+const rustManager = new RustManager(configStore);
 const serviceManager = new ServiceManager(configStore);
 const hostsManager = new HostsManager();
 const gitManager = new GitManager(configStore);
@@ -551,6 +553,21 @@ ipcMain.handle("go:uninstallSystem", (_, path: string) =>
 ipcMain.handle("go:getInfo", (_, version: string) =>
   goManager.getGoInfo(version),
 );
+
+// ==================== Rust 管理 ====================
+ipcMain.handle("rust:getVersions", () => rustManager.getInstalledVersions());
+ipcMain.handle("rust:getAvailableVersions", () =>
+  rustManager.getAvailableVersions(),
+);
+ipcMain.handle("rust:install", (_, name: string) => rustManager.install(name));
+ipcMain.handle("rust:uninstall", (_, name: string) =>
+  rustManager.uninstall(name),
+);
+ipcMain.handle("rust:setActive", (_, name: string) =>
+  rustManager.setActive(name),
+);
+ipcMain.handle("rust:update", () => rustManager.update());
+ipcMain.handle("rust:checkSystem", () => rustManager.checkSystem());
 
 // ==================== 服务管理 ====================
 ipcMain.handle("service:getAll", () => serviceManager.getAllServices());

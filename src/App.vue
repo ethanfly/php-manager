@@ -86,7 +86,7 @@
   const cachedViews = [
     "Dashboard", "PhpManager", "MysqlManager", "NginxManager",
     "RedisManager", "NodeManager", "GoManager", "PythonManager",
-    "GitManager", "SitesManager", "HostsManager", "Settings",
+    "RustManager", "GitManager", "SitesManager", "HostsManager", "Settings",
   ];
 
   const serviceStatus = computed(() => ({
@@ -109,6 +109,7 @@
         { path: "/nodejs", label: "Node.js", icon: "Promotion", service: null },
         { path: "/go", label: "Go", icon: "Aim", service: null },
         { path: "/python", label: "Python", icon: "Platform", service: null },
+        { path: "/rust", label: "Rust", icon: "Tools", service: null },
       ],
     },
     {

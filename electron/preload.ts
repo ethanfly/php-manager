@@ -244,6 +244,18 @@ const api = {
       ipcRenderer.invoke("python:installPackage", version, packageName),
   },
 
+  // Rust 管理
+  rust: {
+    getVersions: () => ipcRenderer.invoke("rust:getVersions"),
+    getAvailableVersions: () =>
+      ipcRenderer.invoke("rust:getAvailableVersions"),
+    install: (name: string) => ipcRenderer.invoke("rust:install", name),
+    uninstall: (name: string) => ipcRenderer.invoke("rust:uninstall", name),
+    setActive: (name: string) => ipcRenderer.invoke("rust:setActive", name),
+    update: () => ipcRenderer.invoke("rust:update"),
+    checkSystem: () => ipcRenderer.invoke("rust:checkSystem"),
+  },
+
   // 服务管理
   service: {
     getAll: () => ipcRenderer.invoke("service:getAll"),
