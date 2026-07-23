@@ -418,6 +418,9 @@ onUnmounted(() => {
     font-size: 12px;
     color: var(--text-muted);
     font-family: 'Fira Code', 'Consolas', monospace;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
   }
 
   .version-actions {

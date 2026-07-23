@@ -51,6 +51,13 @@
                     size="small"
                     class="ml-2"
                   >系统安装</el-tag>
+                  <el-tag
+                    v-if="version.source === 'mise'"
+                    type="primary"
+                    size="small"
+                    effect="plain"
+                    class="ml-2"
+                  >mise 管理</el-tag>
                 </div>
                 <div class="version-path">{{ version.path }}</div>
                 <div class="pip-info" v-if="pipInfo[version.version]">
@@ -71,6 +78,7 @@
                 设为默认
               </el-button>
               <el-button
+                v-if="version.source !== 'mise'"
                 type="danger"
                 size="small"
                 @click="uninstall(version)"
@@ -197,7 +205,7 @@ interface PythonVersion {
   version: string
   path: string
   isActive: boolean
-  source?: 'managed' | 'system'
+  source?: 'managed' | 'system' | 'mise'
 }
 
 interface AvailableVersion {

@@ -15,8 +15,8 @@ interface PythonVersion {
   version: string
   path: string
   isActive: boolean
-  // 来源：managed = 本应用托管；system = 用户在系统其它位置安装
-  source?: 'managed' | 'system'
+  // 来源：managed = 本应用托管；system = 用户在系统其它位置安装；mise = 由 mise 管理（勿由本应用卸载/切换 PATH）
+  source?: 'managed' | 'system' | 'mise'
 }
 
 interface AvailablePythonVersion {
@@ -81,7 +81,7 @@ export class PythonManager {
       }
     }
 
-    // 合并系统其它位置安装的 Python（where python 探测，与托管版本去重）
+    // 合并系统其它位置安装的 Python（探测用户 PATH / mise，与托管版本去重）
     const system = await this.detectSystemPythonDir()
     if (system) {
       const managedHaveIt = versions.some(
@@ -92,7 +92,7 @@ export class PythonManager {
           version: system.version,
           path: system.path,
           isActive: system.version === activeVersion,
-          source: 'system' as const
+          source: system.source
         })
       }
     }
@@ -102,32 +102,106 @@ export class PythonManager {
 
   /**
    * 检测系统已安装的 Python（用户 PATH，非本应用托管）。
-   * 用 `sys.executable` 拿真实可执行路径，而非 `where python`（后者在 mise/asdf
+   * 优先用 PATH 里的 `python` / `python3` 探测：`--version` 拿版本，再用
+   * `sys.executable` 取真实安装目录（而非 `where python`，后者在 mise/asdf
    * 等 shim 环境下返回 shim 目录，会误导展示且卸载误删 shim）。
+   *
+   * 兜底：当 App 进程 PATH 缺少 mise shims（例如 explorer 在 mise 写入 PATH
+   * 前已启动，PATH 陈旧），`python` 会命中 Microsoft Store 的应用执行别名
+   * (WindowsApps\python.exe，非交互调用退出码 49 而非真 Python)，此时改走
+   * `mise exec python -- python ...` 让 mise 用其管理的 default python 探测，
+   * 仍能识别 mise 安装的 Python。该来源标记为 'mise'，不应由本应用卸载/切换。
    * 若真实路径在本应用托管目录下则返回 null。
    */
-  async detectSystemPythonDir(): Promise<{ version: string; path: string } | null> {
+  async detectSystemPythonDir(): Promise<{ version: string; path: string; source: 'system' | 'mise' } | null> {
+    // 1) 优先 PATH 里的 python / python3
+    for (const cmd of ['python', 'python3']) {
+      const hit = await this.tryDetectVia(cmd, 'system')
+      if (hit) return hit
+    }
+    // 2) PATH 里没有真 python（被 Store stub 占位等），用 mise 兜底
+    return await this.detectViaMise()
+  }
+
+  /**
+   * 用指定命令名探测系统 Python：`--version` + `sys.executable`。
+   * 命中 Microsoft Store 的应用执行别名会因退出码非零抛异常，被 catch 当作未命中返回 null。
+   */
+  private async tryDetectVia(
+    cmd: string,
+    source: 'system' | 'mise',
+  ): Promise<{ version: string; path: string; source: 'system' | 'mise' } | null> {
     try {
-      const { stdout } = await execAsync('python --version', {
+      const { stdout } = await execAsync(`${cmd} --version`, {
         windowsHide: true,
         timeout: 8000,
       })
-      const m = stdout.match(/Python\s+(\d+\.\d+\.\d+)/i)
+      // 兼容 3.15.0b4 这类含 beta 后缀的版本号
+      const m = stdout.match(/Python\s+(\d+(?:\.\d+)*(?:[a-z]+\d*)?)/i)
       if (!m) return null
       const version = m[1]
 
       const { stdout: eout } = await execAsync(
-        'python -c "import sys,os; print(os.path.dirname(sys.executable))"',
+        `${cmd} -c "import sys,os; print(os.path.dirname(sys.executable))"`,
         { windowsHide: true, timeout: 8000 },
       )
       const installDir = eout.trim().split(/\r?\n/).pop() || ''
       if (!installDir) return null
       const managedRoot = this.getPythonBasePath().toLowerCase()
       if (installDir.toLowerCase().startsWith(managedRoot)) return null
-      return { version, path: installDir }
+      return { version, path: installDir, source }
     } catch {
       return null
     }
+  }
+
+  /**
+   * mise 兜底探测：用 `mise exec python -- python ...` 让 mise 用其管理的
+   * default/当前 python 执行探测脚本，拿真实安装目录与版本。仅当路径落在
+   * mise installs 目录下才认定为 mise 管理，避免误判。
+   *
+   * 健壮性：App 进程 PATH 可能陈旧到解析不到 `mise`/`python`（explorer 在
+   * mise 写入 PATH 前已启动）。故先按常见固定位置定位 mise 可执行，定位不到
+   * 才回退到 PATH 里的 `mise`。
+   */
+  private async detectViaMise(): Promise<{ version: string; path: string; source: 'mise' } | null> {
+    const miseExe = this.resolveMiseExe()
+    if (!miseExe) return null
+    try {
+      const { stdout: eout } = await execAsync(
+        `"${miseExe}" exec python -- python -c "import sys,os; print(os.path.dirname(sys.executable)); print(sys.version.split()[0])"`,
+        { windowsHide: true, timeout: 12000 },
+      )
+      const lines = eout.trim().split(/\r?\n/).filter(Boolean)
+      const installDir = lines[0] || ''
+      const version = lines[1] || ''
+      if (!installDir || !version) return null
+      const managedRoot = this.getPythonBasePath().toLowerCase()
+      if (installDir.toLowerCase().startsWith(managedRoot)) return null
+      const miseInstalls = join(process.env.LOCALAPPDATA || '', 'mise', 'installs').toLowerCase()
+      if (!installDir.toLowerCase().startsWith(miseInstalls)) return null
+      return { version, path: installDir, source: 'mise' }
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * 定位 mise 可执行路径：按常见固定位置探测，回退到 PATH。
+   * 顺序：winget Links、mise 默认安装目录、mise shims 目录、PATH 里的 `mise`。
+   */
+  private resolveMiseExe(): string | null {
+    const local = process.env.LOCALAPPDATA || ''
+    const candidates = [
+      join(local, 'Microsoft', 'WinGet', 'Links', 'mise.exe'),
+      join(local, 'mise', 'bin', 'mise.exe'),
+      join(local, 'mise', 'shims', 'mise.exe'),
+    ]
+    for (const c of candidates) {
+      if (existsSync(c)) return c
+    }
+    // 回退：交给系统在 PATH 里解析（exec 会自己找 PATH）
+    return 'mise'
   }
 
   /**

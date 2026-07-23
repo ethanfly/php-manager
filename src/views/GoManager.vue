@@ -343,6 +343,8 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-width: 0;
+    overflow: hidden;
 
     &:hover {
       border-color: var(--accent-color);
@@ -405,6 +407,9 @@
       font-size: 12px;
       color: var(--text-muted);
       font-family: 'Fira Code', 'Consolas', monospace;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      line-height: 1.4;
     }
 
     .version-actions {
