@@ -58,30 +58,31 @@ export class PythonManager {
     const pythonBasePath = this.getPythonBasePath()
     const activeVersion = this.configStore.get('activePythonVersion') as string || ''
 
-    if (!existsSync(pythonBasePath)) {
-      return versions
-    }
+    // 扫描本应用托管目录；目录不存在时跳过托管扫描，但仍需探测系统/mise 安装
+    if (existsSync(pythonBasePath)) {
+      const dirs = readdirSync(pythonBasePath, { withFileTypes: true })
 
-    const dirs = readdirSync(pythonBasePath, { withFileTypes: true })
+      for (const dir of dirs) {
+        if (dir.isDirectory() && dir.name.startsWith('python-')) {
+          const version = dir.name.replace('python-', '')
+          const pythonPath = join(pythonBasePath, dir.name)
+          const pythonExe = join(pythonPath, 'python.exe')
 
-    for (const dir of dirs) {
-      if (dir.isDirectory() && dir.name.startsWith('python-')) {
-        const version = dir.name.replace('python-', '')
-        const pythonPath = join(pythonBasePath, dir.name)
-        const pythonExe = join(pythonPath, 'python.exe')
-
-        if (existsSync(pythonExe)) {
-          versions.push({
-            version,
-            path: pythonPath,
-            isActive: version === activeVersion,
-            source: 'managed' as const
-          })
+          if (existsSync(pythonExe)) {
+            versions.push({
+              version,
+              path: pythonPath,
+              isActive: version === activeVersion,
+              source: 'managed' as const
+            })
+          }
         }
       }
     }
 
     // 合并系统其它位置安装的 Python（探测用户 PATH / mise，与托管版本去重）
+    // 注意：必须在托管目录不存在的分支外执行，否则从没在本应用装过 Python 时
+    // 会因 existsSync(pythonBasePath)=false 提前 return，导致系统/mise 安装被跳过。
     const system = await this.detectSystemPythonDir()
     if (system) {
       const managedHaveIt = versions.some(

@@ -54,29 +54,30 @@ export class GoManager {
     const goPath = this.configStore.getGoPath();
     const activeVersion = this.configStore.get("activeGoVersion") || "";
 
-    if (!existsSync(goPath)) {
-      return versions;
-    }
+    // 扫描本应用托管目录；目录不存在时跳过托管扫描，但仍需探测系统/mise 安装
+    if (existsSync(goPath)) {
+      const dirs = readdirSync(goPath, { withFileTypes: true });
+      for (const dir of dirs) {
+        if (dir.isDirectory() && dir.name.startsWith("go-")) {
+          const versionDir = join(goPath, dir.name);
+          const goExe = join(versionDir, "bin", "go.exe");
 
-    const dirs = readdirSync(goPath, { withFileTypes: true });
-    for (const dir of dirs) {
-      if (dir.isDirectory() && dir.name.startsWith("go-")) {
-        const versionDir = join(goPath, dir.name);
-        const goExe = join(versionDir, "bin", "go.exe");
-
-        if (existsSync(goExe)) {
-          const version = dir.name.replace("go-", "");
-          versions.push({
-            version,
-            path: versionDir,
-            isActive: version === activeVersion,
-            source: "managed",
-          });
+          if (existsSync(goExe)) {
+            const version = dir.name.replace("go-", "");
+            versions.push({
+              version,
+              path: versionDir,
+              isActive: version === activeVersion,
+              source: "managed",
+            });
+          }
         }
       }
     }
 
-    // 合并系统其它位置安装的 Go（where go 探测，与托管版本去重）
+    // 合并系统其它位置安装的 Go（探测用户 PATH / mise，与托管版本去重）
+    // 注意：必须在托管目录不存在的分支外执行，否则从没在本应用装过 Go 时
+    // 会因 existsSync(goPath)=false 提前 return，导致系统/mise 安装被跳过。
     const system = await this.detectSystemGo();
     if (system) {
       const managedHaveIt = versions.some(

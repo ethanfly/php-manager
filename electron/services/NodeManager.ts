@@ -47,46 +47,47 @@ export class NodeManager {
   async getInstalledVersions(): Promise<NodeVersion[]> {
     const versions: NodeVersion[] = []
     const nodePath = this.configStore.getNodePath()
-
-    if (!existsSync(nodePath)) {
-      return versions
-    }
-
-    const dirs = readdirSync(nodePath, { withFileTypes: true })
     const activeVersion = this.configStore.get('activeNodeVersion') || ''
 
-    for (const dir of dirs) {
-      if (dir.isDirectory() && dir.name.startsWith('node-')) {
-        const versionDir = join(nodePath, dir.name)
-        const nodeExe = join(versionDir, 'node.exe')
+    // 扫描本应用托管目录；目录不存在时跳过托管扫描，但仍需探测系统/mise 安装
+    if (existsSync(nodePath)) {
+      const dirs = readdirSync(nodePath, { withFileTypes: true })
 
-        if (existsSync(nodeExe)) {
-          const version = dir.name.replace('node-', '').replace('-win-x64', '')
-          let npmVersion = ''
+      for (const dir of dirs) {
+        if (dir.isDirectory() && dir.name.startsWith('node-')) {
+          const versionDir = join(nodePath, dir.name)
+          const nodeExe = join(versionDir, 'node.exe')
 
-          // 尝试获取 npm 版本
-          try {
-            const npmPath = join(versionDir, 'npm.cmd')
-            if (existsSync(npmPath)) {
-              const { stdout } = await execAsync(`"${npmPath}" --version`, { timeout: 5000 })
-              npmVersion = stdout.trim()
+          if (existsSync(nodeExe)) {
+            const version = dir.name.replace('node-', '').replace('-win-x64', '')
+            let npmVersion = ''
+
+            // 尝试获取 npm 版本
+            try {
+              const npmPath = join(versionDir, 'npm.cmd')
+              if (existsSync(npmPath)) {
+                const { stdout } = await execAsync(`"${npmPath}" --version`, { timeout: 5000 })
+                npmVersion = stdout.trim()
+              }
+            } catch (e) {
+              // 忽略错误
             }
-          } catch (e) {
-            // 忽略错误
-          }
 
-          versions.push({
-            version,
-            path: versionDir,
-            isActive: version === activeVersion,
-            npmVersion,
-            source: 'managed' as const
-          })
+            versions.push({
+              version,
+              path: versionDir,
+              isActive: version === activeVersion,
+              npmVersion,
+              source: 'managed' as const
+            })
+          }
         }
       }
     }
 
-    // 合并系统其它位置安装的 Node（where node 探测，与托管版本去重）
+    // 合并系统其它位置安装的 Node（探测用户 PATH / mise，与托管版本去重）
+    // 注意：必须在托管目录不存在的分支外执行，否则从没在本应用装过 Node 时
+    // 会因 existsSync(nodePath)=false 提前 return，导致系统/mise 安装被跳过。
     const system = await this.detectSystemNode()
     if (system) {
       const managedHaveIt = versions.some(
