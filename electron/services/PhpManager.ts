@@ -15,7 +15,7 @@ import https from "https";
 import http from "http";
 import { createWriteStream } from "fs";
 import { sendDownloadProgress } from "../main";
-import { withPathLock } from "./pathLock";
+import { PathManager } from "./PathManager";
 
 const execAsync = promisify(exec);
 
@@ -50,9 +50,11 @@ interface AvailablePhpVersion {
 
 export class PhpManager {
   private configStore: ConfigStore;
+  private pathManager: PathManager;
 
   constructor(configStore: ConfigStore) {
     this.configStore = configStore;
+    this.pathManager = new PathManager(configStore);
   }
 
   /**
@@ -2287,139 +2289,34 @@ export class PhpManager {
   }
 
   private async addToPath(phpPath: string): Promise<void> {
-    return withPathLock(async () => {
-      try {
-        // 先移除所有 PHP 相关路径，再添加新路径
-        const tempScriptPath = join(
-          this.configStore.getTempPath(),
-          "update_path.ps1"
-        );
-        mkdirSync(this.configStore.getTempPath(), { recursive: true });
-
-        // 将路径作为参数传递给脚本，避免转义问题
-        const psScript = `
-param([string]$NewPhpPath)
-
-$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-if ($userPath -eq $null) { $userPath = '' }
-
-Write-Host "Original PATH length: $($userPath.Length)"
-
-$paths = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.Trim() -ne '' }
-
-Write-Host "Original path count: $($paths.Count)"
-
-$filteredPaths = @()
-foreach ($p in $paths) {
-    $pathLower = $p.ToLower()
-    $isPhpPath = $false
-
-    if ($pathLower -like '*\\php\\php-*' -or
-        $pathLower -like '*\\php-*\\*' -or
-        $pathLower -like '*phpenv*php*' -or
-        $pathLower -like '*phper*php*' -or
-        $pathLower -like '*xampp*php*' -or
-        $pathLower -like '*wamp*php*' -or
-        $pathLower -like '*laragon*php*' -or
-        $pathLower -match '\\\\php\\\\?$' -or
-        $pathLower -match '\\\\php-\\d') {
-        $isPhpPath = $true
-        Write-Host "Removing PHP path: $p"
-    }
-
-    if (-not $isPhpPath) {
-        $filteredPaths += $p
-    }
-}
-
-Write-Host "Filtered path count: $($filteredPaths.Count)"
-
-$allPaths = @($NewPhpPath) + $filteredPaths
-$newPath = $allPaths -join ';'
-
-if ($newPath.Length -gt 1024) {
-  Write-Warning "WARNING: PATH length exceeds 1024 characters ($($newPath.Length) chars). Some paths may not work correctly."
-}
-
-[Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
-
-Start-Sleep -Milliseconds 500
-$verifyPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-if ($verifyPath -and $verifyPath.Contains($NewPhpPath)) {
-    Write-Host "SUCCESS: PHP path added to user PATH"
-} else {
-    Write-Host "WARNING: PATH update may not have taken effect"
-}
-`;
-
-        writeFileSync(tempScriptPath, psScript, "utf-8");
-
-        // 使用参数传递路径
-        const { stdout, stderr } = await execAsync(
-          `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -NewPhpPath "${phpPath}"`,
-          { windowsHide: true, timeout: 30000 }
-        );
-
-        console.log("PATH 更新输出:", stdout);
-        if (stderr) console.error("PATH stderr:", stderr);
-        if (stdout.includes("WARNING")) {
-          console.warn("PATH length warning:", stdout.trim());
-        }
-
-        // 检查是否成功
-        if (stdout.includes("SUCCESS")) {
-          console.log("PATH 更新成功");
-        } else {
-          console.warn("PATH 更新可能未完全成功");
-        }
-
-        // 清理临时脚本
-        if (existsSync(tempScriptPath)) {
-          unlinkSync(tempScriptPath);
-        }
-      } catch (error: any) {
-        console.error("添加 PATH 失败:", error);
-        throw new Error(`设置环境变量失败: ${error.message}`);
+    try {
+      // 切换版本：移除本应用托管的所有 PHP 路径（…\php\php-*）后前置新路径。
+      // 只按精确前缀匹配，绝不用通配符扫荡，避免误删用户其它 PATH 条目。
+      const replacePrefix = join(this.configStore.getBasePath(), "php");
+      const result = await this.pathManager.add([phpPath], replacePrefix);
+      if (!result.success) {
+        console.warn("PATH 更新失败:", result.message);
+        throw new Error(`设置环境变量失败: ${result.message}`);
       }
-    });
+      console.log("PATH 更新成功:", result.message);
+    } catch (error: any) {
+      console.error("添加 PATH 失败:", error);
+      throw new Error(`设置环境变量失败: ${error.message}`);
+    }
   }
 
   private async removeFromPath(phpPath: string): Promise<void> {
-    return withPathLock(async () => {
-      try {
-        const tempScriptPath = join(
-          this.configStore.getTempPath(),
-          "remove_php_path.ps1"
-        );
-        mkdirSync(this.configStore.getTempPath(), { recursive: true });
-
-        const psScript = `
-param([string]$PhpPath)
-
-$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-if ($userPath -eq $null) { $userPath = '' }
-$paths = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.Trim() -ne '' -and $_ -ne $PhpPath }
-$newPath = $paths -join ';'
-[Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
-Write-Host "PATH removed successfully"
-`;
-
-        writeFileSync(tempScriptPath, psScript, "utf-8");
-
-        const { stdout, stderr } = await execAsync(
-          `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -PhpPath "${phpPath}"`,
-          { windowsHide: true, timeout: 30000 }
-        );
-        console.log("移除 PATH 成功:", stdout);
-        if (stderr) console.error("PATH stderr:", stderr);
-
-        if (existsSync(tempScriptPath)) {
-          unlinkSync(tempScriptPath);
-        }
-      } catch (error: any) {
-        console.error("移除 PATH 失败:", error);
+    try {
+      // 卸载：仅移除该版本目录对应的 PATH 条目（精确前缀），不动活动版本。
+      const result = await this.pathManager.remove(phpPath);
+      if (!result.success) {
+        console.warn("移除 PATH 失败:", result.message);
+      } else {
+        console.log("移除 PATH 成功:", result.message);
       }
-    });
+    } catch (error: any) {
+      console.error("移除 PATH 失败:", error);
+    }
   }
 
   private removeDirectory(dir: string): void {
@@ -2674,42 +2571,12 @@ Write-Host "PATH removed successfully"
    */
   private async addComposerToPath(toolsDir: string): Promise<void> {
     try {
-      const tempScriptPath = join(
-        this.configStore.getTempPath(),
-        "add_composer_path.ps1"
-      );
-      mkdirSync(this.configStore.getTempPath(), { recursive: true });
-
-      const psScript = `
-param([string]$ComposerPath)
-
-$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-if ($userPath -eq $null) { $userPath = '' }
-
-# Check if already exists
-if ($userPath.ToLower().Contains($ComposerPath.ToLower())) {
-    Write-Host "Composer path already in PATH"
-    exit 0
-}
-
-# Add to PATH
-$newPath = $ComposerPath + ";" + $userPath
-[Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
-
-Write-Host "SUCCESS: Composer path added to user PATH"
-`;
-
-      writeFileSync(tempScriptPath, psScript, "utf-8");
-
-      const { stdout } = await execAsync(
-        `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -ComposerPath "${toolsDir}"`,
-        { windowsHide: true, timeout: 30000 }
-      );
-
-      console.log("Composer PATH 更新:", stdout);
-
-      if (existsSync(tempScriptPath)) {
-        unlinkSync(tempScriptPath);
+      // 仅去重前置，不移除任何已有条目（不传 replacePrefix）。
+      const result = await this.pathManager.add([toolsDir]);
+      if (!result.success) {
+        console.error("添加 Composer 到 PATH 失败:", result.message);
+      } else {
+        console.log("Composer PATH 更新:", result.message);
       }
     } catch (error: any) {
       console.error("添加 Composer 到 PATH 失败:", error);
@@ -2721,37 +2588,12 @@ Write-Host "SUCCESS: Composer path added to user PATH"
    */
   private async removeComposerFromPath(toolsDir: string): Promise<void> {
     try {
-      const tempScriptPath = join(
-        this.configStore.getTempPath(),
-        "remove_composer_path.ps1"
-      );
-      mkdirSync(this.configStore.getTempPath(), { recursive: true });
-
-      const psScript = `
-param([string]$ComposerPath)
-
-$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-if ($userPath -eq $null) { exit 0 }
-
-$paths = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.ToLower() -ne $ComposerPath.ToLower() }
-$newPath = $paths -join ';'
-
-[Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
-
-Write-Host "SUCCESS: Composer path removed from user PATH"
-`;
-
-      writeFileSync(tempScriptPath, psScript, "utf-8");
-
-      const { stdout } = await execAsync(
-        `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -ComposerPath "${toolsDir}"`,
-        { windowsHide: true, timeout: 30000 }
-      );
-
-      console.log("Composer PATH 移除:", stdout);
-
-      if (existsSync(tempScriptPath)) {
-        unlinkSync(tempScriptPath);
+      // 移除 toolsDir 对应的 PATH 条目（精确前缀）。
+      const result = await this.pathManager.remove(toolsDir);
+      if (!result.success) {
+        console.warn("从 PATH 移除 Composer 失败:", result.message);
+      } else {
+        console.log("Composer PATH 移除:", result.message);
       }
     } catch (error: any) {
       console.error("从 PATH 移除 Composer 失败:", error);

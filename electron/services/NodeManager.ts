@@ -8,7 +8,7 @@ import http from 'http'
 import { createWriteStream } from 'fs'
 import unzipper from 'unzipper'
 import { sendDownloadProgress } from '../main'
-import { withPathLock } from './pathLock'
+import { PathManager } from './PathManager'
 
 const execAsync = promisify(exec)
 
@@ -29,12 +29,14 @@ interface AvailableNodeVersion {
 
 export class NodeManager {
   private configStore: ConfigStore
+  private pathManager: PathManager
   private versionsCache: AvailableNodeVersion[] = []
   private cacheTime: number = 0
   private readonly CACHE_DURATION = 5 * 60 * 1000 // 5 分钟缓存
 
   constructor(configStore: ConfigStore) {
     this.configStore = configStore
+    this.pathManager = new PathManager(configStore)
   }
 
   /**
@@ -148,7 +150,11 @@ export class NodeManager {
     })
   }
 
-  private handleVersionResponse(res: http.IncomingMessage, resolve: Function, reject: Function) {
+  private handleVersionResponse(
+    res: http.IncomingMessage,
+    resolve: (value: any) => void,
+    reject: (err: Error) => void,
+  ) {
     let data = ''
     res.on('data', chunk => data += chunk)
     res.on('end', () => {
@@ -172,7 +178,7 @@ export class NodeManager {
         // 只返回前 30 个版本
         resolve(availableVersions.slice(0, 30))
       } catch (e) {
-        reject(e)
+        reject(e instanceof Error ? e : new Error(String(e)))
       }
     })
     res.on('error', reject)
@@ -255,6 +261,8 @@ export class NodeManager {
       const activeVersion = this.configStore.get('activeNodeVersion')
       if (activeVersion === version) {
         this.configStore.set('activeNodeVersion', '')
+        // 仅在卸载活动版本时清理其 PATH 条目，避免误伤其它已设为活动的 Node.js 版本。
+        await this.removeFromPath(versionDir)
       }
 
       // 删除目录
@@ -405,58 +413,28 @@ export class NodeManager {
   }
 
   private async addToPath(nodePath: string): Promise<void> {
-    return withPathLock(async () => {
-      // 使用 param() 传递路径，防止特殊字符破坏脚本
-      const psScript = `
-param([string]$NewNodePath)
-
-$ErrorActionPreference = 'Stop'
-
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-if ($userPath -eq $null) { $userPath = '' }
-
-$pathArray = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.Trim() -ne '' }
-
-# Remove existing Node.js paths (from this manager and common locations)
-$filteredPaths = $pathArray | Where-Object {
-  $p = $_.ToLower()
-  -not ($p -like '*\\node-v*' -or
-        $p -like '*\\nodejs*' -or
-        $p -like '*phper-dev-manager*node*' -or
-        $p -like '*\\nvm\\*')
-}
-
-# Add new path at the beginning
-$newPathArray = @($NewNodePath) + $filteredPaths
-$finalPath = ($newPathArray | Select-Object -Unique) -join ';'
-
-if ($finalPath.Length -gt 1024) {
-  Write-Warning "WARNING: PATH length exceeds 1024 characters ($($finalPath.Length) chars). Some paths may not work correctly."
-}
-
-[Environment]::SetEnvironmentVariable('Path', $finalPath, 'User')
-Write-Output "PATH updated successfully"
-`
-
-      const tempPs1 = join(this.configStore.getTempPath(), 'update_node_path.ps1')
-      writeFileSync(tempPs1, psScript, 'utf-8')
-
-      try {
-        const { stdout } = await execAsync(
-          `powershell -ExecutionPolicy Bypass -File "${tempPs1}" -NewNodePath "${nodePath}"`,
-          { timeout: 30000 }
-        )
-        if (stdout.includes('WARNING')) {
-          console.warn('PATH length warning:', stdout.trim())
-        }
-      } finally {
-        try {
-          unlinkSync(tempPs1)
-        } catch (e) {
-          // 忽略
-        }
+    try {
+      // 切换 Node.js 版本：按 …\nodejs 前缀整体移除旧版本 PATH 后前置新版本目录。
+      const replacePrefix = this.configStore.getNodePath()
+      const result = await this.pathManager.add([nodePath], replacePrefix)
+      if (!result.success) {
+        console.error('更新 Node.js PATH 失败:', result.message)
       }
-    })
+    } catch (error: any) {
+      console.error('更新 Node.js PATH 失败:', error)
+    }
+  }
+
+  private async removeFromPath(nodePath: string): Promise<void> {
+    try {
+      // 卸载某 Node.js 版本：仅移除该版本目录对应的 PATH 条目（精确前缀），不动活动版本。
+      const result = await this.pathManager.remove(nodePath)
+      if (!result.success) {
+        console.warn('移除 Node.js PATH 失败:', result.message)
+      }
+    } catch (error: any) {
+      console.error('移除 Node.js PATH 失败:', error)
+    }
   }
 
   private getFallbackVersions(): AvailableNodeVersion[] {

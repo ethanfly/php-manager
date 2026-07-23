@@ -25,7 +25,7 @@
           <div class="setting-action">
             <el-switch 
               v-model="appSettings.autoLaunch"
-              @change="(val) => toggleAutoLaunch(val as boolean)"
+              @change="(val: boolean) => toggleAutoLaunch(val as boolean)"
             />
           </div>
         </div>
@@ -37,7 +37,7 @@
           <div class="setting-action">
             <el-switch 
               v-model="appSettings.startMinimized"
-              @change="(val) => toggleStartMinimized(val as boolean)"
+              @change="(val: boolean) => toggleStartMinimized(val as boolean)"
               :disabled="!appSettings.autoLaunch"
             />
           </div>
@@ -88,7 +88,7 @@
           <div class="setting-action">
             <el-switch 
               v-model="service.autoStart"
-              @change="(val) => toggleAutoStart(service.name, val as boolean)"
+              @change="(val: boolean) => toggleAutoStart(service.name, val as boolean)"
             />
           </div>
         </div>

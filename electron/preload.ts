@@ -1,7 +1,10 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-// 暴露安全的 API 到渲染进程
-contextBridge.exposeInMainWorld("electronAPI", {
+// 暴露安全的 API 到渲染进程。
+// 注意：exposeInMainWorld 的运行时值与 Window['electronAPI'] 的类型必须同源，
+// 否则会出现「类型里没有、运行时有」或反之的割裂。这里统一用单一 const api，
+// 既作为暴露值，也作为 Window 接口的类型来源。
+const api = {
   // 窗口控制
   minimize: () => ipcRenderer.invoke("window:minimize"),
   maximize: () => ipcRenderer.invoke("window:maximize"),
@@ -25,8 +28,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ) => {
     ipcRenderer.on("download-progress", (_, data) => callback(data));
   },
-  removeDownloadProgressListener: () => {
-    ipcRenderer.removeAllListeners("download-progress");
+  // 传入 callback 时仅移除该监听器；不传时清空该 channel 全部监听器。
+  removeDownloadProgressListener: (
+    callback?: (data: {
+      type: string;
+      progress: number;
+      downloaded: number;
+      total: number;
+    }) => void,
+  ) => {
+    if (callback) {
+      ipcRenderer.removeListener("download-progress", callback as any);
+    } else {
+      ipcRenderer.removeAllListeners("download-progress");
+    }
   },
 
   // PHP 管理
@@ -293,26 +308,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   removeServiceStatusChangedListener: (callback: () => void) => {
     ipcRenderer.removeListener("service-status-changed", callback);
   },
-});
+};
 
-// 声明 Window 接口扩展
+contextBridge.exposeInMainWorld("electronAPI", api);
+
+// 声明 Window 接口扩展：类型直接取自上方的 api，保证与运行时暴露值一致。
+export type ElectronAPI = typeof api;
+
 declare global {
   interface Window {
-    electronAPI: typeof api;
+    electronAPI: ElectronAPI;
   }
 }
-
-const api = {
-  minimize: () => ipcRenderer.invoke("window:minimize"),
-  maximize: () => ipcRenderer.invoke("window:maximize"),
-  close: () => ipcRenderer.invoke("window:close"),
-  openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url),
-  openPath: (path: string) => ipcRenderer.invoke("shell:openPath", path),
-  php: {} as any,
-  mysql: {} as any,
-  nginx: {} as any,
-  redis: {} as any,
-  service: {} as any,
-  hosts: {} as any,
-  config: {} as any,
-};

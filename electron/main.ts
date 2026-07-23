@@ -610,9 +610,10 @@ ipcMain.handle(
 );
 
 // ==================== 配置管理 ====================
-ipcMain.handle("config:get", (_, key: string) => configStore.get(key));
+// 配置管理：渲染端按动态字符串 key 读写，这里放宽到 any 以匹配 configStore 的泛型约束。
+ipcMain.handle("config:get", (_, key: string) => configStore.get(key as any));
 ipcMain.handle("config:set", (_, key: string, value: any) =>
-  configStore.set(key, value),
+  configStore.set(key as any, value),
 );
 ipcMain.handle("config:getBasePath", () => configStore.getBasePath());
 ipcMain.handle("config:setBasePath", (_, path: string) =>

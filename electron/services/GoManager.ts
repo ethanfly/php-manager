@@ -15,7 +15,7 @@ import http from "http";
 import { createWriteStream } from "fs";
 import unzipper from "unzipper";
 import { sendDownloadProgress } from "../main";
-import { withPathLock } from "./pathLock";
+import { PathManager } from "./PathManager";
 
 const execAsync = promisify(exec);
 
@@ -34,12 +34,14 @@ interface AvailableGoVersion {
 
 export class GoManager {
   private configStore: ConfigStore;
+  private pathManager: PathManager;
   private versionsCache: AvailableGoVersion[] = [];
   private cacheTime: number = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 分钟缓存
 
   constructor(configStore: ConfigStore) {
     this.configStore = configStore;
+    this.pathManager = new PathManager(configStore);
   }
 
   /**
@@ -241,6 +243,8 @@ export class GoManager {
       const activeVersion = this.configStore.get("activeGoVersion");
       if (activeVersion === version) {
         this.configStore.set("activeGoVersion", "");
+        // 仅在卸载活动版本时清理其 PATH 条目，避免误伤其它已设为活动的 Go 版本。
+        await this.removeFromPath(versionDir);
       }
 
       rmSync(versionDir, { recursive: true, force: true });
@@ -393,53 +397,29 @@ export class GoManager {
   }
 
   private async addToPath(goPath: string): Promise<void> {
-    return withPathLock(async () => {
-      const binPath = join(goPath, "bin");
-
-      const psScript = `
-param([string]$BinPath)
-
-$ErrorActionPreference = 'Stop'
-
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-if ($userPath -eq $null) { $userPath = '' }
-
-$pathArray = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.Trim() -ne '' }
-
-$filteredPaths = $pathArray | Where-Object {
-  $p = $_.ToLower()
-  -not ($p -like '*\\go-*\\bin*' -or $p -like '*\\go\\bin*' -or $p -like '*phper*go*')
-}
-
-$newPathArray = @($BinPath) + $filteredPaths
-$finalPath = ($newPathArray | Select-Object -Unique) -join ';'
-
-if ($finalPath.Length -gt 1024) {
-  Write-Warning "WARNING: PATH length exceeds 1024 characters ($($finalPath.Length) chars). Some paths may not work correctly."
-}
-
-[Environment]::SetEnvironmentVariable('Path', $finalPath, 'User')
-Write-Output "PATH updated"
-`;
-
-      const tempPs1 = join(this.configStore.getTempPath(), "update_go_path.ps1");
-      const { writeFileSync } = require("fs");
-      writeFileSync(tempPs1, psScript, "utf-8");
-
-      try {
-        const { stdout } = await execAsync(
-          `powershell -ExecutionPolicy Bypass -File "${tempPs1}" -BinPath "${binPath}"`,
-          { timeout: 30000 }
-        );
-        if (stdout.includes('WARNING')) {
-          console.warn('PATH length warning:', stdout.trim())
-        }
-      } finally {
-        try {
-          unlinkSync(tempPs1);
-        } catch (e) {}
+    const binPath = join(goPath, "bin");
+    try {
+      // 切换 Go 版本：按 …\go 前缀整体移除旧版本 PATH 后前置新版本 bin。
+      const replacePrefix = this.configStore.getGoPath();
+      const result = await this.pathManager.add([binPath], replacePrefix);
+      if (!result.success) {
+        console.error("更新 Go PATH 失败:", result.message);
       }
-    });
+    } catch (error: any) {
+      console.error("更新 Go PATH 失败:", error);
+    }
+  }
+
+  private async removeFromPath(goPath: string): Promise<void> {
+    try {
+      // 卸载某 Go 版本：仅移除该版本目录下的 PATH 条目（精确前缀），不动活动版本。
+      const result = await this.pathManager.remove(goPath);
+      if (!result.success) {
+        console.warn("移除 Go PATH 失败:", result.message);
+      }
+    } catch (error: any) {
+      console.error("移除 Go PATH 失败:", error);
+    }
   }
 
   private getFallbackVersions(): AvailableGoVersion[] {

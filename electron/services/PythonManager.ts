@@ -7,7 +7,7 @@ import https from 'https'
 import http from 'http'
 import { createWriteStream } from 'fs'
 import { sendDownloadProgress } from '../main'
-import { withPathLock } from './pathLock'
+import { PathManager } from './PathManager'
 
 const execAsync = promisify(exec)
 
@@ -25,11 +25,13 @@ interface AvailablePythonVersion {
 
 export class PythonManager {
   private configStore: ConfigStore
+  private pathManager: PathManager
   private versionCache: { versions: AvailablePythonVersion[]; timestamp: number } | null = null
   private readonly CACHE_TTL = 5 * 60 * 1000 // 5分钟缓存
 
   constructor(configStore: ConfigStore) {
     this.configStore = configStore
+    this.pathManager = new PathManager(configStore)
   }
 
   /**
@@ -306,7 +308,7 @@ export class PythonManager {
       const activeVersion = this.configStore.get('activePythonVersion')
       if (activeVersion === version) {
         await this.removeFromPath(pythonPath)
-        this.configStore.set('activePythonVersion' as any, '')
+        this.configStore.set("activePythonVersion", "")
       }
 
       // 删除目录
@@ -338,7 +340,7 @@ export class PythonManager {
       await this.addToPath(pythonPath)
 
       // 更新配置
-      this.configStore.set('activePythonVersion' as any, version)
+      this.configStore.set("activePythonVersion", version);
 
       return {
         success: true,
@@ -563,98 +565,29 @@ export class PythonManager {
   }
 
   private async addToPath(pythonPath: string): Promise<void> {
-    return withPathLock(async () => {
-      try {
-        const scriptsPath = join(pythonPath, 'Scripts')
-
-        const tempScriptPath = join(this.configStore.getTempPath(), 'add_python_path.ps1')
-        mkdirSync(this.configStore.getTempPath(), { recursive: true })
-
-        const psScript = `
-param([string]$PythonPath, [string]$ScriptsPath)
-
-$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-if ($userPath -eq $null) { $userPath = '' }
-
-$paths = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.Trim() -ne '' }
-
-# 移除旧的 Python 路径
-$filteredPaths = @()
-foreach ($p in $paths) {
-    $pathLower = $p.ToLower()
-    if (-not ($pathLower -like '*\\python\\python-*' -or $pathLower -like '*\\python-*\\*')) {
-        $filteredPaths += $p
-    }
-}
-
-# 添加新路径
-$allPaths = @($PythonPath, $ScriptsPath) + $filteredPaths
-$newPath = $allPaths -join ';'
-
-if ($newPath.Length -gt 1024) {
-  Write-Warning "WARNING: PATH length exceeds 1024 characters ($($newPath.Length) chars). Some paths may not work correctly."
-}
-
-[Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
-Write-Host "SUCCESS: Python path added"
-`
-
-        writeFileSync(tempScriptPath, psScript, 'utf-8')
-
-        const { stdout } = await execAsync(
-          `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -PythonPath "${pythonPath}" -ScriptsPath "${scriptsPath}"`,
-          { windowsHide: true, timeout: 30000 }
-        )
-
-        if (stdout.includes('WARNING')) {
-          console.warn('PATH length warning:', stdout.trim())
-        }
-
-        if (existsSync(tempScriptPath)) {
-          unlinkSync(tempScriptPath)
-        }
-      } catch (error: any) {
-        console.error('添加 Python 到 PATH 失败:', error)
+    try {
+      const scriptsPath = join(pythonPath, 'Scripts')
+      // 切换 Python 版本：按 …\python 前缀整体移除旧版本 PATH 后前置新版本目录与 Scripts。
+      const replacePrefix = this.getPythonBasePath()
+      const result = await this.pathManager.add([pythonPath, scriptsPath], replacePrefix)
+      if (!result.success) {
+        console.error('添加 Python 到 PATH 失败:', result.message)
       }
-    })
+    } catch (error: any) {
+      console.error('添加 Python 到 PATH 失败:', error)
+    }
   }
 
   private async removeFromPath(pythonPath: string): Promise<void> {
-    return withPathLock(async () => {
-      try {
-        const tempScriptPath = join(this.configStore.getTempPath(), 'remove_python_path.ps1')
-        mkdirSync(this.configStore.getTempPath(), { recursive: true })
-
-        const psScript = `
-param([string]$PythonBasePath)
-
-$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-if ($userPath -eq $null) { exit 0 }
-
-$pythonPathLower = $PythonBasePath.ToLower()
-$paths = $userPath -split ';' | Where-Object {
-    $_ -ne '' -and $_.Trim() -ne '' -and -not $_.ToLower().StartsWith($pythonPathLower)
-}
-$newPath = $paths -join ';'
-
-[Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
-Write-Host "SUCCESS: Python path removed"
-`
-
-        writeFileSync(tempScriptPath, psScript, 'utf-8')
-
-        await execAsync(
-          `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -PythonBasePath "${pythonPath}"`,
-          { windowsHide: true, timeout: 30000 }
-        )
-
-        if (existsSync(tempScriptPath)) {
-          unlinkSync(tempScriptPath)
-        }
-      } catch (error: any) {
-        console.error('从 PATH 移除 Python 失败:', error)
+    try {
+      // 卸载某 Python 版本：仅移除该版本目录下的 PATH 条目（精确前缀），不动活动版本。
+      const result = await this.pathManager.remove(pythonPath)
+      if (!result.success) {
+        console.warn('从 PATH 移除 Python 失败:', result.message)
       }
-    })
+    } catch (error: any) {
+      console.error('从 PATH 移除 Python 失败:', error)
+    }
   }
 
   private removeDirectory(dir: string): void {

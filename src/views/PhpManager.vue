@@ -332,7 +332,7 @@
               </div>
               <el-switch 
                 v-model="ext.enabled"
-                @change="(val) => toggleExtension(ext.name, val as boolean)"
+                @change="(val: boolean) => toggleExtension(ext.name, val as boolean)"
               />
             </div>
           </div>

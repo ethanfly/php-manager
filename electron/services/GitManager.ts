@@ -7,7 +7,7 @@ import https from 'https'
 import http from 'http'
 import { createWriteStream } from 'fs'
 import { sendDownloadProgress } from '../main'
-import { withPathLock } from './pathLock'
+import { PathManager } from './PathManager'
 
 const execAsync = promisify(exec)
 
@@ -25,9 +25,11 @@ interface AvailableGitVersion {
 
 export class GitManager {
   private configStore: ConfigStore
+  private pathManager: PathManager
 
   constructor(configStore: ConfigStore) {
     this.configStore = configStore
+    this.pathManager = new PathManager(configStore)
   }
 
   /**
@@ -355,107 +357,30 @@ export class GitManager {
   }
 
   private async addToPath(): Promise<void> {
-    return withPathLock(async () => {
-      try {
-        const gitPath = this.getGitPath()
-        const cmdPath = join(gitPath, 'cmd')
-        const binPath = join(gitPath, 'bin')
-
-        const tempScriptPath = join(this.configStore.getTempPath(), 'add_git_path.ps1')
-        mkdirSync(this.configStore.getTempPath(), { recursive: true })
-
-        const psScript = `
-param([string]$CmdPath, [string]$BinPath)
-
-$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-if ($userPath -eq $null) { $userPath = '' }
-
-$paths = $userPath -split ';' | Where-Object { $_ -ne '' -and $_.Trim() -ne '' }
-
-# 移除旧的 Git 路径（更精确的匹配，防止误删 digit 等非 Git 路径）
-$filteredPaths = @()
-foreach ($p in $paths) {
-    $pathLower = $p.ToLower()
-    if ($pathLower -like '*\\git\\cmd*' -or
-        $pathLower -like '*\\git\\bin*' -or
-        $pathLower -like '*\\git-*' -or
-        $pathLower.EndsWith('\\git')) {
-        Write-Host "Removing old Git path: $p"
-    } else {
-        $filteredPaths += $p
-    }
-}
-
-# 添加新路径
-$allPaths = @($CmdPath, $BinPath) + $filteredPaths
-$newPath = $allPaths -join ';'
-
-if ($newPath.Length -gt 1024) {
-  Write-Warning "WARNING: PATH length exceeds 1024 characters ($($newPath.Length) chars). Some paths may not work correctly."
-}
-
-[Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
-Write-Host "SUCCESS: Git path added"
-`
-
-        writeFileSync(tempScriptPath, psScript, 'utf-8')
-
-        const { stdout } = await execAsync(
-          `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -CmdPath "${cmdPath}" -BinPath "${binPath}"`,
-          { windowsHide: true, timeout: 30000 }
-        )
-
-        if (stdout.includes('WARNING')) {
-          console.warn('PATH length warning:', stdout.trim())
-        }
-
-        if (existsSync(tempScriptPath)) {
-          unlinkSync(tempScriptPath)
-        }
-      } catch (error: any) {
-        console.error('添加 Git 到 PATH 失败:', error)
+    try {
+      const gitPath = this.getGitPath()
+      const cmdPath = join(gitPath, 'cmd')
+      const binPath = join(gitPath, 'bin')
+      // Git 只在本应用托管目录下有一份，重装/更新时按 …\git 前缀整体替换。
+      const result = await this.pathManager.add([cmdPath, binPath], gitPath)
+      if (!result.success) {
+        console.error('添加 Git 到 PATH 失败:', result.message)
       }
-    })
+    } catch (error: any) {
+      console.error('添加 Git 到 PATH 失败:', error)
+    }
   }
 
   private async removeFromPath(): Promise<void> {
-    return withPathLock(async () => {
-      try {
-        const gitPath = this.getGitPath()
-
-        const tempScriptPath = join(this.configStore.getTempPath(), 'remove_git_path.ps1')
-        mkdirSync(this.configStore.getTempPath(), { recursive: true })
-
-        const psScript = `
-param([string]$GitBasePath)
-
-$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-if ($userPath -eq $null) { exit 0 }
-
-$gitPathLower = $GitBasePath.ToLower()
-$paths = $userPath -split ';' | Where-Object {
-    $_ -ne '' -and $_.Trim() -ne '' -and -not $_.ToLower().StartsWith($gitPathLower)
-}
-$newPath = $paths -join ';'
-
-[Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
-Write-Host "SUCCESS: Git path removed"
-`
-
-        writeFileSync(tempScriptPath, psScript, 'utf-8')
-
-        await execAsync(
-          `powershell -ExecutionPolicy Bypass -File "${tempScriptPath}" -GitBasePath "${gitPath}"`,
-          { windowsHide: true, timeout: 30000 }
-        )
-
-        if (existsSync(tempScriptPath)) {
-          unlinkSync(tempScriptPath)
-        }
-      } catch (error: any) {
-        console.error('从 PATH 移除 Git 失败:', error)
+    try {
+      // 卸载 Git：移除整个 …\git 目录下的 PATH 条目。
+      const result = await this.pathManager.remove(this.getGitPath())
+      if (!result.success) {
+        console.error('从 PATH 移除 Git 失败:', result.message)
       }
-    })
+    } catch (error: any) {
+      console.error('从 PATH 移除 Git 失败:', error)
+    }
   }
 
   private removeDirectory(dir: string): void {

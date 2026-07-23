@@ -14,6 +14,7 @@ interface ConfigSchema {
   activePhpVersion: string;
   activeNodeVersion: string;
   activeGoVersion: string;
+  activePythonVersion: string;
   autoStart: {
     nginx: boolean;
     mysql: boolean;
@@ -72,6 +73,7 @@ export class ConfigStore {
         activePhpVersion: "",
         activeNodeVersion: "",
         activeGoVersion: "",
+        activePythonVersion: "",
         autoStart: {
           nginx: false,
           mysql: false,

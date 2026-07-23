@@ -272,7 +272,7 @@ const formatSize = (bytes: number) => {
 }
 
 // 监听下载进度
-const onDownloadProgress = (_event: any, data: any) => {
+const onDownloadProgress = (data: any) => {
   if (data.type === 'nodejs') {
     downloadProgress.percent = data.progress
     downloadProgress.downloaded = data.downloaded
