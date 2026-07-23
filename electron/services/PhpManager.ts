@@ -30,6 +30,8 @@ interface PhpVersion {
   version: string;
   path: string;
   isActive: boolean;
+  // 来源：managed = 本应用托管目录下载的版本；system = 用户在系统其它位置安装的版本
+  source: "managed" | "system";
 }
 
 interface PhpExtension {
@@ -88,12 +90,61 @@ export class PhpManager {
             version,
             path: phpPath,
             isActive: version === activeVersion,
+            source: "managed",
           });
         }
       }
     }
 
+    // 合并系统其它位置安装的 PHP（where php 探测，与托管版本去重）
+    const system = await this.detectSystemPhp();
+    if (system) {
+      const managedHaveIt = versions.some(
+        (v) => v.version === system.version || v.path === system.path
+      );
+      if (!managedHaveIt) {
+        versions.push({
+          version: system.version,
+          path: system.path,
+          isActive: system.version === activeVersion,
+          source: "system",
+        });
+      }
+    }
+
     return versions.sort((a, b) => b.version.localeCompare(a.version));
+  }
+
+  /**
+   * 检测系统已安装的 PHP（来自用户 PATH，非本应用托管）。
+   * 用 `php -r 'echo dirname(PHP_BINARY);'` 拿真实可执行目录，而非 `where php`
+   * （后者在版本管理器 shim 环境下返回 shim 目录）。若路径在本应用托管目录
+   * (basePath/php)下，返回 null 避免与托管版本重复。
+   */
+  async detectSystemPhp(): Promise<{ version: string; path: string } | null> {
+    try {
+      const { stdout } = await execAsync("php -v", {
+        windowsHide: true,
+        timeout: 8000,
+      });
+      // 第一行形如：PHP 8.3.6 (cli) (built: ...) NTS Visual C++ ...
+      const m = stdout.match(/PHP\s+(\d+\.\d+\.\d+)/i);
+      if (!m) return null;
+      const version = m[1];
+
+      const { stdout: eout } = await execAsync(
+        'php -r "echo dirname(PHP_BINARY);"',
+        { windowsHide: true, timeout: 8000 },
+      );
+      const dir = eout.trim().split(/\r?\n/).pop() || "";
+      if (!dir) return null;
+      const managedRoot = join(this.configStore.getBasePath(), "php").toLowerCase();
+      if (dir.toLowerCase().startsWith(managedRoot)) return null;
+      return { version, path: dir };
+    } catch {
+      // 系统未装 PHP 或不在 PATH
+      return null;
+    }
   }
 
   /**
@@ -493,6 +544,99 @@ export class PhpManager {
     } catch (error: any) {
       console.error("设置默认 PHP 版本失败:", error);
       return { success: false, message: `设置失败: ${error.message}` };
+    }
+  }
+
+  /**
+   * 将系统已安装的 PHP 设为默认（用户在系统其它位置安装的版本）。
+   * 与 setActive 区别：路径来自传入的绝对目录，不走托管目录解析；
+   * 同时记录 activePhpPath，使 Composer/CGI 等内部消费者能正确解析。
+   */
+  async setActiveSystem(
+    path: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const phpPath = path.trim();
+      if (!phpPath || !existsSync(phpPath)) {
+        return { success: false, message: `路径不存在: ${path}` };
+      }
+      if (!existsSync(join(phpPath, "php.exe"))) {
+        return {
+          success: false,
+          message: `该目录下找不到 php.exe，不是有效的 PHP 安装: ${phpPath}`,
+        };
+      }
+
+      // 探测版本号用于显示
+      let version = "system";
+      try {
+        const { stdout } = await execAsync(`"${join(phpPath, "php.exe")}" -v`, {
+          windowsHide: true,
+          timeout: 8000,
+        });
+        const m = stdout.match(/PHP\s+(\d+\.\d+\.\d+)/i);
+        if (m) version = m[1];
+      } catch {}
+
+      // 前置系统 PHP 到用户 PATH，并移除托管目录下的旧 PHP 路径
+      const replacePrefix = join(this.configStore.getBasePath(), "php");
+      const result = await this.pathManager.add([phpPath], replacePrefix);
+      if (!result.success) {
+        return { success: false, message: `设置环境变量失败: ${result.message}` };
+      }
+
+      // 记录活动版本（version 用于显示/isActive 判断；path 用于解析）
+      this.configStore.set("activePhpVersion", version);
+      this.configStore.set("activePhpPath", phpPath);
+
+      return {
+        success: true,
+        message: `系统 PHP ${version} 已设为默认\n\n环境变量已更新，新开的终端窗口中将生效。\n路径: ${phpPath}`,
+      };
+    } catch (error: any) {
+      console.error("设置系统 PHP 为默认失败:", error);
+      return { success: false, message: `设置失败: ${error.message}` };
+    }
+  }
+
+  /**
+   * 卸载系统已安装的 PHP（删除用户在系统其它位置安装的目录）。
+   * ⚠️ 不可逆：会递归删除传入目录。调用方（UI）必须二次确认。
+   * 若该目录恰好是当前活动版本，会先从 PATH 移除并清空 active 标记。
+   */
+  async uninstallSystem(
+    path: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const phpPath = path.trim();
+      if (!phpPath || !existsSync(phpPath)) {
+        return { success: false, message: `路径不存在: ${path}` };
+      }
+      // 安全护栏：仅当目录内含 php.exe 才视为可删，避免误删任意目录。
+      if (!existsSync(join(phpPath, "php.exe"))) {
+        return {
+          success: false,
+          message: `该目录下找不到 php.exe，拒绝删除以防误删: ${phpPath}`,
+        };
+      }
+
+      // 若是当前活动版本，先从 PATH 移除并清空 active
+      const activePath = this.configStore.getActivePhpPath();
+      if (
+        activePath.toLowerCase() === phpPath.toLowerCase() &&
+        this.configStore.get("activePhpVersion")
+      ) {
+        await this.pathManager.remove(phpPath);
+        this.configStore.set("activePhpVersion", "");
+        this.configStore.set("activePhpPath", "");
+      }
+
+      // 递归删除安装目录
+      this.removeDirectory(phpPath);
+
+      return { success: true, message: `系统 PHP 已卸载: ${phpPath}` };
+    } catch (error: any) {
+      return { success: false, message: `卸载失败: ${error.message}` };
     }
   }
 
@@ -2506,7 +2650,7 @@ export class PhpManager {
     try {
       const activePhp = this.configStore.get("activePhpVersion");
       if (activePhp) {
-        const phpPath = this.configStore.getPhpPath(activePhp);
+        const phpPath = this.configStore.getActivePhpPath();
         const phpExe = join(phpPath, "php.exe");
 
         if (existsSync(phpExe)) {
@@ -2600,7 +2744,7 @@ export class PhpManager {
       // 验证安装
       const activePhp = this.configStore.get("activePhpVersion");
       if (activePhp) {
-        const phpPath = this.configStore.getPhpPath(activePhp);
+        const phpPath = this.configStore.getActivePhpPath();
         const phpExe = join(phpPath, "php.exe");
 
         if (existsSync(phpExe)) {
@@ -2710,7 +2854,7 @@ export class PhpManager {
         return { success: false, message: "Composer 未安装" };
       }
 
-      const phpPath = this.configStore.getPhpPath(activePhp);
+      const phpPath = this.configStore.getActivePhpPath();
       const phpExe = join(phpPath, "php.exe");
 
       // 检查 PHP 是否存在
@@ -2790,7 +2934,7 @@ export class PhpManager {
         };
       }
 
-      const phpPath = this.configStore.getPhpPath(activePhp);
+      const phpPath = this.configStore.getActivePhpPath();
       const phpExe = join(phpPath, "php.exe");
 
       // 检查 PHP 是否存在

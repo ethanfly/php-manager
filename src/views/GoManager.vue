@@ -54,6 +54,14 @@
                     effect="dark"
                     >当前版本</el-tag
                   >
+                  <el-tag
+                    v-if="version.source === 'system'"
+                    type="warning"
+                    size="small"
+                    effect="plain"
+                    class="ml-2"
+                    >系统安装</el-tag
+                  >
                 </div>
                 <div class="version-meta">
                   <span class="version-path">{{ version.path }}</span>
@@ -65,7 +73,7 @@
                 v-if="!version.isActive"
                 type="primary"
                 size="small"
-                @click="setActiveVersion(version.version)"
+                @click="setActiveVersion(version)"
                 :loading="settingActive === version.version">
                 设为默认
               </el-button>
@@ -73,7 +81,7 @@
                 type="danger"
                 size="small"
                 plain
-                @click="uninstallVersion(version.version)"
+                @click="uninstallVersion(version)"
                 :loading="uninstalling === version.version">
                 卸载
               </el-button>
@@ -151,6 +159,7 @@
     version: string;
     path: string;
     isActive: boolean;
+    source?: "managed" | "system";
   }
 
   interface AvailableGoVersion {
@@ -224,14 +233,38 @@
     }
   };
 
-  const uninstallVersion = async (version: string) => {
+  const uninstallVersion = async (version: GoVersion) => {
     try {
-      await ElMessageBox.confirm(`确定要卸载 Go ${version} 吗？`, "确认卸载", {
+      if (version.source === "system") {
+        await ElMessageBox.confirm(
+          `⚠️ 即将删除系统 Go 目录及其全部内容：\n${version.path}\n\n此操作不可恢复，且可能影响依赖该 Go 的其它程序。如需取消，请点击「取消」。`,
+          "危险操作：删除系统 Go",
+          {
+            type: "error",
+            confirmButtonText: "确认删除",
+            cancelButtonText: "取消",
+            confirmButtonClass: "el-button--danger",
+          },
+        );
+        uninstalling.value = version.version;
+        const result = await window.electronAPI?.go.uninstallSystem(
+          version.path,
+        );
+        if (result?.success) {
+          ElMessage.success(result.message);
+          await loadVersions();
+        } else {
+          ElMessage.error(result?.message || "卸载失败");
+        }
+        return;
+      }
+
+      await ElMessageBox.confirm(`确定要卸载 Go ${version.version} 吗？`, "确认卸载", {
         type: "warning",
       });
 
-      uninstalling.value = version;
-      const result = await window.electronAPI?.go.uninstall(version);
+      uninstalling.value = version.version;
+      const result = await window.electronAPI?.go.uninstall(version.version);
       if (result?.success) {
         ElMessage.success(result.message);
         await loadVersions();
@@ -247,10 +280,13 @@
     }
   };
 
-  const setActiveVersion = async (version: string) => {
-    settingActive.value = version;
+  const setActiveVersion = async (version: GoVersion) => {
+    settingActive.value = version.version;
     try {
-      const result = await window.electronAPI?.go.setActive(version);
+      const result =
+        version.source === "system"
+          ? await window.electronAPI?.go.setActiveSystem(version.path)
+          : await window.electronAPI?.go.setActive(version.version);
       if (result?.success) {
         ElMessage.success(result.message);
         await loadVersions();

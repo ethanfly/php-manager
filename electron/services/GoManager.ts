@@ -23,6 +23,8 @@ interface GoVersion {
   version: string;
   path: string;
   isActive: boolean;
+  // 来源：managed = 本应用托管；system = 用户在系统其它位置安装
+  source: "managed" | "system";
 }
 
 interface AvailableGoVersion {
@@ -68,8 +70,25 @@ export class GoManager {
             version,
             path: versionDir,
             isActive: version === activeVersion,
+            source: "managed",
           });
         }
+      }
+    }
+
+    // 合并系统其它位置安装的 Go（where go 探测，与托管版本去重）
+    const system = await this.detectSystemGo();
+    if (system) {
+      const managedHaveIt = versions.some(
+        (v) => v.version === system.version || v.path === system.path
+      );
+      if (!managedHaveIt) {
+        versions.push({
+          version: system.version,
+          path: system.path,
+          isActive: system.version === activeVersion,
+          source: "system",
+        });
       }
     }
 
@@ -83,6 +102,36 @@ export class GoManager {
     });
 
     return versions;
+  }
+
+  /**
+   * 检测系统已安装的 Go（用户 PATH，非本应用托管）。
+   * 用 `go env GOROOT` 拿真实安装根，而非 `where go`（后者在 mise/asdf 等
+   * shim 环境下返回的是 shim 目录，而非真实安装，会误导展示且卸载会误删 shim）。
+   * 若 GOROOT 落在本应用托管目录(basePath/go)下，返回 null 避免与托管版本重复。
+   */
+  async detectSystemGo(): Promise<{ version: string; path: string } | null> {
+    try {
+      const { stdout: vout } = await execAsync("go version", {
+        windowsHide: true,
+        timeout: 8000,
+      });
+      const m = vout.match(/go version (go[\d.]+)/i);
+      if (!m) return null;
+      const version = m[1].replace(/^go/, ""); // "1.23.5"
+
+      const { stdout: rootOut } = await execAsync("go env GOROOT", {
+        windowsHide: true,
+        timeout: 8000,
+      });
+      const root = rootOut.trim();
+      if (!root) return null;
+      const managedRoot = this.configStore.getGoPath().toLowerCase();
+      if (root.toLowerCase().startsWith(managedRoot)) return null;
+      return { version, path: root };
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -279,10 +328,95 @@ export class GoManager {
       await this.addToPath(versionDir);
 
       this.configStore.set("activeGoVersion", version);
+      this.configStore.set("activeGoPath", "");
 
       return { success: true, message: `已将 Go ${version} 设为默认版本` };
     } catch (error: any) {
       return { success: false, message: `设置失败: ${error.message}` };
+    }
+  }
+
+  /**
+   * 将系统已安装的 Go 设为默认。path 为 Go 安装根（含 bin/go.exe）。
+   */
+  async setActiveSystem(
+    path: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const goRoot = path.trim();
+      if (!goRoot || !existsSync(goRoot)) {
+        return { success: false, message: `路径不存在: ${path}` };
+      }
+      if (!existsSync(join(goRoot, "bin", "go.exe"))) {
+        return {
+          success: false,
+          message: `该目录下找不到 bin/go.exe，不是有效的 Go 安装: ${goRoot}`,
+        };
+      }
+
+      let version = "system";
+      try {
+        const { stdout } = await execAsync(
+          `"${join(goRoot, "bin", "go.exe")}" version`,
+          { windowsHide: true, timeout: 8000 },
+        );
+        const m = stdout.match(/go version (go[\d.]+)/i);
+        if (m) version = m[1].replace(/^go/, "");
+      } catch {}
+
+      const binPath = join(goRoot, "bin");
+      const replacePrefix = this.configStore.getGoPath();
+      const result = await this.pathManager.add([binPath], replacePrefix);
+      if (!result.success) {
+        return { success: false, message: `设置环境变量失败: ${result.message}` };
+      }
+
+      this.configStore.set("activeGoVersion", version);
+      this.configStore.set("activeGoPath", goRoot);
+
+      return {
+        success: true,
+        message: `系统 Go ${version} 已设为默认\n路径: ${goRoot}`,
+      };
+    } catch (error: any) {
+      return { success: false, message: `设置失败: ${error.message}` };
+    }
+  }
+
+  /**
+   * 卸载系统已安装的 Go（递归删除传入安装根目录）。⚠️ 不可逆，UI 需二次确认。
+   * 安全校验：仅当目录含 bin/go.exe 才删除。
+   */
+  async uninstallSystem(
+    path: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const goRoot = path.trim();
+      if (!goRoot || !existsSync(goRoot)) {
+        return { success: false, message: `路径不存在: ${path}` };
+      }
+      if (!existsSync(join(goRoot, "bin", "go.exe"))) {
+        return {
+          success: false,
+          message: `该目录下找不到 bin/go.exe，拒绝删除以防误删: ${goRoot}`,
+        };
+      }
+
+      const activePath = this.configStore.getActiveGoPath();
+      if (
+        activePath &&
+        activePath.toLowerCase() === goRoot.toLowerCase() &&
+        this.configStore.get("activeGoVersion")
+      ) {
+        await this.pathManager.remove(goRoot);
+        this.configStore.set("activeGoVersion", "");
+        this.configStore.set("activeGoPath", "");
+      }
+
+      rmSync(goRoot, { recursive: true, force: true });
+      return { success: true, message: `系统 Go 已卸载: ${goRoot}` };
+    } catch (error: any) {
+      return { success: false, message: `卸载失败: ${error.message}` };
     }
   }
 

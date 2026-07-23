@@ -45,10 +45,18 @@
                 <div class="version-name">
                   PHP {{ version.version }}
                   <el-tag v-if="version.isActive" type="success" size="small" class="ml-2">当前使用</el-tag>
-                  <el-tag 
-                    v-if="isCgiRunning(version.version)" 
-                    type="success" 
-                    size="small" 
+                  <el-tag
+                    v-if="version.source === 'system'"
+                    type="warning"
+                    size="small"
+                    class="ml-2"
+                  >
+                    系统安装
+                  </el-tag>
+                  <el-tag
+                    v-if="isCgiRunning(version.version)"
+                    type="success"
+                    size="small"
                     class="ml-2"
                   >
                     CGI:{{ getCgiPort(version.version) }}
@@ -58,27 +66,29 @@
               </div>
             </div>
             <div class="version-actions">
+              <!-- 托管版本才有 CGI/扩展/配置/日志；系统安装版本仅支持设为默认与卸载 -->
+              <template v-if="version.source !== 'system'">
               <!-- CGI 控制按钮 -->
-              <el-tooltip 
-                :content="isCgiRunning(version.version) 
-                  ? `停止 CGI (端口 ${getCgiPort(version.version)})` 
+              <el-tooltip
+                :content="isCgiRunning(version.version)
+                  ? `停止 CGI (端口 ${getCgiPort(version.version)})`
                   : `启动 CGI (端口 ${getCgiPort(version.version)})`"
                 placement="top"
               >
-                <el-button 
+                <el-button
                   v-if="isCgiRunning(version.version)"
-                  type="danger" 
-                  size="small" 
+                  type="danger"
+                  size="small"
                   @click="stopCgi(version.version)"
                   :loading="cgiLoading[version.version]"
                 >
                   <el-icon><VideoPause /></el-icon>
                   CGI
                 </el-button>
-                <el-button 
+                <el-button
                   v-else
-                  type="success" 
-                  size="small" 
+                  type="success"
+                  size="small"
                   @click="startCgi(version.version)"
                   :loading="cgiLoading[version.version]"
                 >
@@ -86,14 +96,6 @@
                   CGI
                 </el-button>
               </el-tooltip>
-              <el-button 
-                v-if="!version.isActive" 
-                type="primary" 
-                size="small" 
-                @click="setActive(version.version)"
-              >
-                设为默认
-              </el-button>
               <el-button size="small" @click="showExtensions(version)">
                 <el-icon><Setting /></el-icon>
                 扩展
@@ -106,10 +108,19 @@
                 <el-icon><Document /></el-icon>
                 日志
               </el-button>
-              <el-button 
-                type="danger" 
-                size="small" 
-                @click="uninstall(version.version)"
+              </template>
+              <el-button
+                v-if="!version.isActive"
+                type="primary"
+                size="small"
+                @click="setActive(version)"
+              >
+                设为默认
+              </el-button>
+              <el-button
+                type="danger"
+                size="small"
+                @click="uninstall(version)"
                 :disabled="version.isActive"
               >
                 <el-icon><Delete /></el-icon>
@@ -443,6 +454,7 @@ interface PhpVersion {
   version: string
   path: string
   isActive: boolean
+  source?: 'managed' | 'system'
 }
 
 interface AvailableVersion {
@@ -755,15 +767,37 @@ const install = async () => {
   }
 }
 
-const uninstall = async (version: string) => {
+const uninstall = async (version: PhpVersion) => {
   try {
+    if (version.source === 'system') {
+      // 系统/全局工具卸载会删除用户自己安装的目录，需强确认并要求输入路径
+      await ElMessageBox.confirm(
+        `⚠️ 即将删除系统 PHP 目录及其全部内容：\n${version.path}\n\n此操作不可恢复，且可能影响依赖该 PHP 的其它程序。如需取消，请点击「取消」。`,
+        '危险操作：删除系统 PHP',
+        {
+          type: 'error',
+          confirmButtonText: '确认删除',
+          cancelButtonText: '取消',
+          confirmButtonClass: 'el-button--danger',
+        }
+      )
+      const result = await window.electronAPI?.php.uninstallSystem(version.path)
+      if (result?.success) {
+        ElMessage.success(result.message)
+        await loadVersions()
+      } else {
+        ElMessage.error(result?.message || '卸载失败')
+      }
+      return
+    }
+
     await ElMessageBox.confirm(
-      `确定要卸载 PHP ${version} 吗？此操作不可恢复。`,
+      `确定要卸载 PHP ${version.version} 吗？此操作不可恢复。`,
       '确认卸载',
       { type: 'warning' }
     )
-    
-    const result = await window.electronAPI?.php.uninstall(version)
+
+    const result = await window.electronAPI?.php.uninstall(version.version)
     if (result?.success) {
       ElMessage.success(result.message)
       await loadVersions()
@@ -778,9 +812,12 @@ const uninstall = async (version: string) => {
   }
 }
 
-const setActive = async (version: string) => {
+const setActive = async (version: PhpVersion) => {
   try {
-    const result = await window.electronAPI?.php.setActive(version)
+    const result =
+      version.source === 'system'
+        ? await window.electronAPI?.php.setActiveSystem(version.path)
+        : await window.electronAPI?.php.setActive(version.version)
     if (result?.success) {
       ElMessage.success(result.message)
       await loadVersions()

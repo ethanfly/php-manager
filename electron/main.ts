@@ -349,6 +349,13 @@ ipcMain.handle("php:uninstall", (_, version: string) =>
 ipcMain.handle("php:setActive", (_, version: string) =>
   phpManager.setActive(version),
 );
+// 系统/全局已安装 PHP 的管理
+ipcMain.handle("php:setActiveSystem", (_, path: string) =>
+  phpManager.setActiveSystem(path),
+);
+ipcMain.handle("php:uninstallSystem", (_, path: string) =>
+  phpManager.uninstallSystem(path),
+);
 ipcMain.handle("php:getExtensions", (_, version: string) =>
   phpManager.getExtensions(version),
 );
@@ -509,6 +516,13 @@ ipcMain.handle("node:uninstall", (_, version: string) =>
 ipcMain.handle("node:setActive", (_, version: string) =>
   nodeManager.setActive(version),
 );
+// 系统/全局已安装 Node.js 的管理
+ipcMain.handle("node:setActiveSystem", (_, path: string) =>
+  nodeManager.setActiveSystem(path),
+);
+ipcMain.handle("node:uninstallSystem", (_, path: string) =>
+  nodeManager.uninstallSystem(path),
+);
 ipcMain.handle("node:getInfo", (_, version: string) =>
   nodeManager.getNodeInfo(version),
 );
@@ -526,6 +540,13 @@ ipcMain.handle("go:uninstall", (_, version: string) =>
 );
 ipcMain.handle("go:setActive", (_, version: string) =>
   goManager.setActive(version),
+);
+// 系统/全局已安装 Go 的管理
+ipcMain.handle("go:setActiveSystem", (_, path: string) =>
+  goManager.setActiveSystem(path),
+);
+ipcMain.handle("go:uninstallSystem", (_, path: string) =>
+  goManager.uninstallSystem(path),
 );
 ipcMain.handle("go:getInfo", (_, version: string) =>
   goManager.getGoInfo(version),
@@ -598,6 +619,13 @@ ipcMain.handle("python:uninstall", (_, version: string) =>
 );
 ipcMain.handle("python:setActive", (_, version: string) =>
   pythonManager.setActive(version),
+);
+// 系统/全局已安装 Python 的管理
+ipcMain.handle("python:setActiveSystem", (_, path: string) =>
+  pythonManager.setActiveSystem(path),
+);
+ipcMain.handle("python:uninstallSystem", (_, path: string) =>
+  pythonManager.uninstallSystem(path),
 );
 ipcMain.handle("python:checkSystem", () => pythonManager.checkSystemPython());
 ipcMain.handle("python:getPipInfo", (_, version: string) =>

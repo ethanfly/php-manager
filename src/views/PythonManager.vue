@@ -45,6 +45,12 @@
                 <div class="version-name">
                   Python {{ version.version }}
                   <el-tag v-if="version.isActive" type="success" size="small" class="ml-2">当前使用</el-tag>
+                  <el-tag
+                    v-if="version.source === 'system'"
+                    type="warning"
+                    size="small"
+                    class="ml-2"
+                  >系统安装</el-tag>
                 </div>
                 <div class="version-path">{{ version.path }}</div>
                 <div class="pip-info" v-if="pipInfo[version.version]">
@@ -55,19 +61,19 @@
               </div>
             </div>
             <div class="version-actions">
-              <el-button 
-                v-if="!version.isActive" 
-                type="primary" 
-                size="small" 
-                @click="setActive(version.version)"
+              <el-button
+                v-if="!version.isActive"
+                type="primary"
+                size="small"
+                @click="setActive(version)"
                 :loading="settingActive === version.version"
               >
                 设为默认
               </el-button>
-              <el-button 
-                type="danger" 
-                size="small" 
-                @click="uninstall(version.version)"
+              <el-button
+                type="danger"
+                size="small"
+                @click="uninstall(version)"
                 :disabled="version.isActive"
               >
                 <el-icon><Delete /></el-icon>
@@ -191,6 +197,7 @@ interface PythonVersion {
   version: string
   path: string
   isActive: boolean
+  source?: 'managed' | 'system'
 }
 
 interface AvailableVersion {
@@ -288,15 +295,36 @@ const install = async () => {
   }
 }
 
-const uninstall = async (version: string) => {
+const uninstall = async (version: PythonVersion) => {
   try {
+    if (version.source === 'system') {
+      await ElMessageBox.confirm(
+        `⚠️ 即将删除系统 Python 目录及其全部内容：\n${version.path}\n\n此操作不可恢复，且可能影响依赖该 Python 的其它程序。如需取消，请点击「取消」。`,
+        '危险操作：删除系统 Python',
+        {
+          type: 'error',
+          confirmButtonText: '确认删除',
+          cancelButtonText: '取消',
+          confirmButtonClass: 'el-button--danger',
+        }
+      )
+      const result = await window.electronAPI?.python?.uninstallSystem(version.path)
+      if (result?.success) {
+        ElMessage.success(result.message)
+        await loadVersions()
+      } else {
+        ElMessage.error(result?.message || '卸载失败')
+      }
+      return
+    }
+
     await ElMessageBox.confirm(
-      `确定要卸载 Python ${version} 吗？此操作不可恢复。`,
+      `确定要卸载 Python ${version.version} 吗？此操作不可恢复。`,
       '确认卸载',
       { type: 'warning' }
     )
-    
-    const result = await window.electronAPI?.python?.uninstall(version)
+
+    const result = await window.electronAPI?.python?.uninstall(version.version)
     if (result?.success) {
       ElMessage.success(result.message)
       await loadVersions()
@@ -311,10 +339,13 @@ const uninstall = async (version: string) => {
   }
 }
 
-const setActive = async (version: string) => {
-  settingActive.value = version
+const setActive = async (version: PythonVersion) => {
+  settingActive.value = version.version
   try {
-    const result = await window.electronAPI?.python?.setActive(version)
+    const result =
+      version.source === 'system'
+        ? await window.electronAPI?.python?.setActiveSystem(version.path)
+        : await window.electronAPI?.python?.setActive(version.version)
     if (result?.success) {
       ElMessage.success(result.message)
       await loadVersions()

@@ -74,7 +74,7 @@ export class ServiceManager {
     // 检查 PHP-CGI
     const activePhp = this.configStore.get('activePhpVersion')
     if (activePhp) {
-      const phpPath = this.configStore.getPhpPath(activePhp)
+      const phpPath = this.configStore.getActivePhpPath()
       if (existsSync(join(phpPath, 'php-cgi.exe'))) {
         const running = await this.checkProcess('php-cgi.exe')
         const autoStart = this.checkAutoStart('php-cgi')
@@ -115,7 +115,7 @@ export class ServiceManager {
         } else if (service === 'php-cgi') {
           const activePhp = this.configStore.get('activePhpVersion')
           if (activePhp) {
-            const phpPath = this.configStore.getPhpPath(activePhp)
+            const phpPath = this.configStore.getActivePhpPath()
             script += `start "" /B "${join(phpPath, 'php-cgi.exe')}" -b 127.0.0.1:9000\n`
           }
         }
@@ -393,7 +393,12 @@ export class ServiceManager {
    */
   async startPhpCgiVersion(version: string): Promise<{ success: boolean; message: string }> {
     try {
-      const phpPath = this.configStore.getPhpPath(version)
+      // 若启动的是当前活动版本且其为全局安装，用记录的全局路径而非托管目录解析。
+      const activePhp = this.configStore.get('activePhpVersion')
+      const phpPath =
+        version === activePhp && this.configStore.get('activePhpPath')
+          ? this.configStore.getActivePhpPath()
+          : this.configStore.getPhpPath(version)
       const phpCgi = join(phpPath, 'php-cgi.exe')
 
       if (!existsSync(phpCgi)) {

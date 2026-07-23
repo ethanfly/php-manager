@@ -42,6 +42,13 @@
                 <div class="version-title">
                   <span class="version-number">Node.js {{ version.version }}</span>
                   <el-tag v-if="version.isActive" type="success" size="small" effect="dark">当前版本</el-tag>
+                  <el-tag
+                    v-if="version.source === 'system'"
+                    type="warning"
+                    size="small"
+                    effect="plain"
+                    class="ml-2"
+                  >系统安装</el-tag>
                 </div>
                 <div class="version-meta">
                   <span v-if="version.npmVersion" class="npm-version">
@@ -53,20 +60,20 @@
               </div>
             </div>
             <div class="version-actions">
-              <el-button 
+              <el-button
                 v-if="!version.isActive"
-                type="primary" 
-                size="small" 
-                @click="setActiveVersion(version.version)"
+                type="primary"
+                size="small"
+                @click="setActiveVersion(version)"
                 :loading="settingActive === version.version"
               >
                 设为默认
               </el-button>
-              <el-button 
-                type="danger" 
-                size="small" 
+              <el-button
+                type="danger"
+                size="small"
                 plain
-                @click="uninstallVersion(version.version)"
+                @click="uninstallVersion(version)"
                 :loading="uninstalling === version.version"
               >
                 卸载
@@ -151,6 +158,7 @@ interface NodeVersion {
   path: string
   isActive: boolean
   npmVersion?: string
+  source?: 'managed' | 'system'
 }
 
 interface AvailableNodeVersion {
@@ -221,16 +229,38 @@ const installVersion = async (row: AvailableNodeVersion) => {
   }
 }
 
-const uninstallVersion = async (version: string) => {
+const uninstallVersion = async (version: NodeVersion) => {
   try {
+    if (version.source === 'system') {
+      await ElMessageBox.confirm(
+        `⚠️ 即将删除系统 Node.js 目录及其全部内容：\n${version.path}\n\n此操作不可恢复，且可能影响依赖该 Node.js 的其它程序。如需取消，请点击「取消」。`,
+        '危险操作：删除系统 Node.js',
+        {
+          type: 'error',
+          confirmButtonText: '确认删除',
+          cancelButtonText: '取消',
+          confirmButtonClass: 'el-button--danger',
+        }
+      )
+      uninstalling.value = version.version
+      const result = await window.electronAPI?.node.uninstallSystem(version.path)
+      if (result?.success) {
+        ElMessage.success(result.message)
+        await loadVersions()
+      } else {
+        ElMessage.error(result?.message || '卸载失败')
+      }
+      return
+    }
+
     await ElMessageBox.confirm(
-      `确定要卸载 Node.js ${version} 吗？`,
+      `确定要卸载 Node.js ${version.version} 吗？`,
       '确认卸载',
       { type: 'warning' }
     )
-    
-    uninstalling.value = version
-    const result = await window.electronAPI?.node.uninstall(version)
+
+    uninstalling.value = version.version
+    const result = await window.electronAPI?.node.uninstall(version.version)
     if (result?.success) {
       ElMessage.success(result.message)
       await loadVersions()
@@ -246,10 +276,13 @@ const uninstallVersion = async (version: string) => {
   }
 }
 
-const setActiveVersion = async (version: string) => {
-  settingActive.value = version
+const setActiveVersion = async (version: NodeVersion) => {
+  settingActive.value = version.version
   try {
-    const result = await window.electronAPI?.node.setActive(version)
+    const result =
+      version.source === 'system'
+        ? await window.electronAPI?.node.setActiveSystem(version.path)
+        : await window.electronAPI?.node.setActive(version.version)
     if (result?.success) {
       ElMessage.success(result.message)
       await loadVersions()

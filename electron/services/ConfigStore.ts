@@ -15,6 +15,13 @@ interface ConfigSchema {
   activeNodeVersion: string;
   activeGoVersion: string;
   activePythonVersion: string;
+  // 活动版本若为系统安装的全局工具，记录其 exe 所在目录（托管的为空）。
+  // 供 getActivePhpPath 等 helper 解析"当前活动工具路径"，避免 set 全局为默认后
+  // 托管目录解析失败。
+  activePhpPath: string;
+  activeNodePath: string;
+  activeGoPath: string;
+  activePythonPath: string;
   autoStart: {
     nginx: boolean;
     mysql: boolean;
@@ -74,6 +81,10 @@ export class ConfigStore {
         activeNodeVersion: "",
         activeGoVersion: "",
         activePythonVersion: "",
+        activePhpPath: "",
+        activeNodePath: "",
+        activeGoPath: "",
+        activePythonPath: "",
         autoStart: {
           nginx: false,
           mysql: false,
@@ -140,6 +151,12 @@ export class ConfigStore {
     return join(this.basePath, "php", `php-${version}`);
   }
 
+  // 活动版本的解析：若 active*Path 非空（系统/全局安装），用它；否则回退托管目录。
+  getActivePhpPath(): string {
+    const p = this.store.get("activePhpPath");
+    return p ? p : this.getPhpPath(this.store.get("activePhpVersion"));
+  }
+
   getMysqlPath(version: string): string {
     return join(this.basePath, "mysql", `mysql-${version}`);
   }
@@ -156,8 +173,24 @@ export class ConfigStore {
     return join(this.basePath, "nodejs");
   }
 
+  getActiveNodePath(): string {
+    const p = this.store.get("activeNodePath");
+    return p ? p : this.getNodePath();
+  }
+
   getGoPath(): string {
     return join(this.basePath, "go");
+  }
+
+  getActiveGoPath(): string {
+    const p = this.store.get("activeGoPath");
+    return p ? p : this.getGoPath();
+  }
+
+  // Python 托管根目录与活动解析（与 Node/Go/PHP 对称）
+  getActivePythonPath(): string {
+    const p = this.store.get("activePythonPath");
+    return p ? p : join(this.basePath, "python", `python-${this.store.get("activePythonVersion")}`);
   }
 
   getLogsPath(): string {

@@ -53,6 +53,11 @@ const api = {
       ipcRenderer.invoke("php:uninstall", version),
     setActive: (version: string) =>
       ipcRenderer.invoke("php:setActive", version),
+    // 系统/全局已安装 PHP：设为默认 / 卸载（按目录路径标识）
+    setActiveSystem: (path: string) =>
+      ipcRenderer.invoke("php:setActiveSystem", path),
+    uninstallSystem: (path: string) =>
+      ipcRenderer.invoke("php:uninstallSystem", path),
     getExtensions: (version: string) =>
       ipcRenderer.invoke("php:getExtensions", version),
     openExtensionDir: (version: string) =>
@@ -182,6 +187,10 @@ const api = {
       ipcRenderer.invoke("go:install", version, downloadUrl),
     uninstall: (version: string) => ipcRenderer.invoke("go:uninstall", version),
     setActive: (version: string) => ipcRenderer.invoke("go:setActive", version),
+    setActiveSystem: (path: string) =>
+      ipcRenderer.invoke("go:setActiveSystem", path),
+    uninstallSystem: (path: string) =>
+      ipcRenderer.invoke("go:uninstallSystem", path),
     getInfo: (version: string) => ipcRenderer.invoke("go:getInfo", version),
   },
 
@@ -195,6 +204,10 @@ const api = {
       ipcRenderer.invoke("node:uninstall", version),
     setActive: (version: string) =>
       ipcRenderer.invoke("node:setActive", version),
+    setActiveSystem: (path: string) =>
+      ipcRenderer.invoke("node:setActiveSystem", path),
+    uninstallSystem: (path: string) =>
+      ipcRenderer.invoke("node:uninstallSystem", path),
     getInfo: (version: string) => ipcRenderer.invoke("node:getInfo", version),
   },
 
@@ -220,6 +233,10 @@ const api = {
       ipcRenderer.invoke("python:uninstall", version),
     setActive: (version: string) =>
       ipcRenderer.invoke("python:setActive", version),
+    setActiveSystem: (path: string) =>
+      ipcRenderer.invoke("python:setActiveSystem", path),
+    uninstallSystem: (path: string) =>
+      ipcRenderer.invoke("python:uninstallSystem", path),
     checkSystem: () => ipcRenderer.invoke("python:checkSystem"),
     getPipInfo: (version: string) =>
       ipcRenderer.invoke("python:getPipInfo", version),

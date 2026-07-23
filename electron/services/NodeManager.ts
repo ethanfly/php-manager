@@ -17,6 +17,8 @@ interface NodeVersion {
   path: string
   isActive: boolean
   npmVersion?: string
+  // 来源：managed = 本应用托管；system = 用户在系统其它位置安装
+  source?: 'managed' | 'system'
 }
 
 interface AvailableNodeVersion {
@@ -77,9 +79,27 @@ export class NodeManager {
             version,
             path: versionDir,
             isActive: version === activeVersion,
-            npmVersion
+            npmVersion,
+            source: 'managed' as const
           })
         }
+      }
+    }
+
+    // 合并系统其它位置安装的 Node（where node 探测，与托管版本去重）
+    const system = await this.detectSystemNode()
+    if (system) {
+      const managedHaveIt = versions.some(
+        (v) => v.version === system.version || v.path === system.path
+      )
+      if (!managedHaveIt) {
+        versions.push({
+          version: system.version,
+          path: system.path,
+          isActive: system.version === activeVersion,
+          npmVersion: system.npmVersion,
+          source: 'system' as const
+        })
       }
     }
 
@@ -96,6 +116,46 @@ export class NodeManager {
     })
 
     return versions
+  }
+
+  /**
+   * 检测系统已安装的 Node.js（用户 PATH，非本应用托管）。
+   * 用 `node -p process.execPath` 拿真实可执行路径，而非 `where node`（后者在
+   * mise/nvm 等 shim 环境下返回 shim 目录，会误导展示且卸载误删 shim）。
+   * 若真实路径在本应用托管目录(basePath/nodejs)下，返回 null 避免重复。
+   */
+  async detectSystemNode(): Promise<{ version: string; path: string; npmVersion?: string } | null> {
+    try {
+      const { stdout: vout } = await execAsync('node --version', {
+        windowsHide: true,
+        timeout: 8000,
+      })
+      const version = vout.trim().replace(/^v/, '')
+      if (!version) return null
+
+      const { stdout: eout } = await execAsync(
+        'node -e "console.log(require(\'path\').dirname(process.execPath))"',
+        { windowsHide: true, timeout: 8000 },
+      )
+      const installDir = eout.trim()
+      if (!installDir) return null
+      const managedRoot = this.configStore.getNodePath().toLowerCase()
+      if (installDir.toLowerCase().startsWith(managedRoot)) return null
+
+      // 探测 npm 版本
+      let npmVersion: string | undefined
+      try {
+        const npmPath = join(installDir, 'npm.cmd')
+        if (existsSync(npmPath)) {
+          const { stdout } = await execAsync(`"${npmPath}" --version`, { timeout: 5000 })
+          npmVersion = stdout.trim()
+        }
+      } catch {}
+
+      return { version, path: installDir, npmVersion }
+    } catch {
+      return null
+    }
   }
 
   /**
@@ -299,10 +359,89 @@ export class NodeManager {
 
       // 更新配置
       this.configStore.set('activeNodeVersion', version)
+      this.configStore.set('activeNodePath', '')
 
       return { success: true, message: `已将 Node.js ${version} 设为默认版本` }
     } catch (error: any) {
       return { success: false, message: `设置失败: ${error.message}` }
+    }
+  }
+
+  /**
+   * 将系统已安装的 Node.js 设为默认。path 为含 node.exe 的目录。
+   */
+  async setActiveSystem(path: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const nodeDir = path.trim()
+      if (!nodeDir || !existsSync(nodeDir)) {
+        return { success: false, message: `路径不存在: ${path}` }
+      }
+      if (!existsSync(join(nodeDir, 'node.exe'))) {
+        return {
+          success: false,
+          message: `该目录下找不到 node.exe，不是有效的 Node.js 安装: ${nodeDir}`,
+        }
+      }
+
+      let version = 'system'
+      try {
+        const { stdout } = await execAsync(`"${join(nodeDir, 'node.exe')}" --version`, {
+          windowsHide: true,
+          timeout: 8000,
+        })
+        version = stdout.trim().replace(/^v/, '')
+      } catch {}
+
+      const replacePrefix = this.configStore.getNodePath()
+      const result = await this.pathManager.add([nodeDir], replacePrefix)
+      if (!result.success) {
+        return { success: false, message: `设置环境变量失败: ${result.message}` }
+      }
+
+      this.configStore.set('activeNodeVersion', version)
+      this.configStore.set('activeNodePath', nodeDir)
+
+      return {
+        success: true,
+        message: `系统 Node.js ${version} 已设为默认\n路径: ${nodeDir}`,
+      }
+    } catch (error: any) {
+      return { success: false, message: `设置失败: ${error.message}` }
+    }
+  }
+
+  /**
+   * 卸载系统已安装的 Node.js（递归删除传入目录）。⚠️ 不可逆，UI 需二次确认。
+   * 安全校验：仅当目录含 node.exe 才删除。
+   */
+  async uninstallSystem(path: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const nodeDir = path.trim()
+      if (!nodeDir || !existsSync(nodeDir)) {
+        return { success: false, message: `路径不存在: ${path}` }
+      }
+      if (!existsSync(join(nodeDir, 'node.exe'))) {
+        return {
+          success: false,
+          message: `该目录下找不到 node.exe，拒绝删除以防误删: ${nodeDir}`,
+        }
+      }
+
+      const activePath = this.configStore.getActiveNodePath()
+      if (
+        activePath &&
+        activePath.toLowerCase() === nodeDir.toLowerCase() &&
+        this.configStore.get('activeNodeVersion')
+      ) {
+        await this.pathManager.remove(nodeDir)
+        this.configStore.set('activeNodeVersion', '')
+        this.configStore.set('activeNodePath', '')
+      }
+
+      rmSync(nodeDir, { recursive: true, force: true })
+      return { success: true, message: `系统 Node.js 已卸载: ${nodeDir}` }
+    } catch (error: any) {
+      return { success: false, message: `卸载失败: ${error.message}` }
     }
   }
 

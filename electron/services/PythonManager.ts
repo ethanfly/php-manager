@@ -15,6 +15,8 @@ interface PythonVersion {
   version: string
   path: string
   isActive: boolean
+  // 来源：managed = 本应用托管；system = 用户在系统其它位置安装
+  source?: 'managed' | 'system'
 }
 
 interface AvailablePythonVersion {
@@ -72,13 +74,60 @@ export class PythonManager {
           versions.push({
             version,
             path: pythonPath,
-            isActive: version === activeVersion
+            isActive: version === activeVersion,
+            source: 'managed' as const
           })
         }
       }
     }
 
+    // 合并系统其它位置安装的 Python（where python 探测，与托管版本去重）
+    const system = await this.detectSystemPythonDir()
+    if (system) {
+      const managedHaveIt = versions.some(
+        (v) => v.version === system.version || v.path === system.path
+      )
+      if (!managedHaveIt) {
+        versions.push({
+          version: system.version,
+          path: system.path,
+          isActive: system.version === activeVersion,
+          source: 'system' as const
+        })
+      }
+    }
+
     return versions.sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true }))
+  }
+
+  /**
+   * 检测系统已安装的 Python（用户 PATH，非本应用托管）。
+   * 用 `sys.executable` 拿真实可执行路径，而非 `where python`（后者在 mise/asdf
+   * 等 shim 环境下返回 shim 目录，会误导展示且卸载误删 shim）。
+   * 若真实路径在本应用托管目录下则返回 null。
+   */
+  async detectSystemPythonDir(): Promise<{ version: string; path: string } | null> {
+    try {
+      const { stdout } = await execAsync('python --version', {
+        windowsHide: true,
+        timeout: 8000,
+      })
+      const m = stdout.match(/Python\s+(\d+\.\d+\.\d+)/i)
+      if (!m) return null
+      const version = m[1]
+
+      const { stdout: eout } = await execAsync(
+        'python -c "import sys,os; print(os.path.dirname(sys.executable))"',
+        { windowsHide: true, timeout: 8000 },
+      )
+      const installDir = eout.trim().split(/\r?\n/).pop() || ''
+      if (!installDir) return null
+      const managedRoot = this.getPythonBasePath().toLowerCase()
+      if (installDir.toLowerCase().startsWith(managedRoot)) return null
+      return { version, path: installDir }
+    } catch {
+      return null
+    }
   }
 
   /**
@@ -341,6 +390,7 @@ export class PythonManager {
 
       // 更新配置
       this.configStore.set("activePythonVersion", version);
+      this.configStore.set("activePythonPath", "");
 
       return {
         success: true,
@@ -348,6 +398,89 @@ export class PythonManager {
       }
     } catch (error: any) {
       return { success: false, message: `设置失败: ${error.message}` }
+    }
+  }
+
+  /**
+   * 将系统已安装的 Python 设为默认。path 为含 python.exe 的目录。
+   * 同时把 <path>/Scripts 加入 PATH（pip 安装的可执行文件所在地）。
+   */
+  async setActiveSystem(path: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const pythonDir = path.trim()
+      if (!pythonDir || !existsSync(pythonDir)) {
+        return { success: false, message: `路径不存在: ${path}` }
+      }
+      if (!existsSync(join(pythonDir, 'python.exe'))) {
+        return {
+          success: false,
+          message: `该目录下找不到 python.exe，不是有效的 Python 安装: ${pythonDir}`,
+        }
+      }
+
+      let version = 'system'
+      try {
+        const { stdout } = await execAsync(`"${join(pythonDir, 'python.exe')}" --version`, {
+          windowsHide: true,
+          timeout: 8000,
+        })
+        const m = stdout.match(/Python\s+(\d+\.\d+\.\d+)/i)
+        if (m) version = m[1]
+      } catch {}
+
+      const scriptsPath = join(pythonDir, 'Scripts')
+      const entries = existsSync(scriptsPath) ? [pythonDir, scriptsPath] : [pythonDir]
+      const replacePrefix = this.getPythonBasePath()
+      const result = await this.pathManager.add(entries, replacePrefix)
+      if (!result.success) {
+        return { success: false, message: `设置环境变量失败: ${result.message}` }
+      }
+
+      this.configStore.set("activePythonVersion", version);
+      this.configStore.set("activePythonPath", pythonDir);
+
+      return {
+        success: true,
+        message: `系统 Python ${version} 已设为默认\n路径: ${pythonDir}`,
+      }
+    } catch (error: any) {
+      return { success: false, message: `设置失败: ${error.message}` }
+    }
+  }
+
+  /**
+   * 卸载系统已安装的 Python（递归删除传入目录）。⚠️ 不可逆，UI 需二次确认。
+   * 安全校验：仅当目录含 python.exe 才删除。
+   */
+  async uninstallSystem(path: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const pythonDir = path.trim()
+      if (!pythonDir || !existsSync(pythonDir)) {
+        return { success: false, message: `路径不存在: ${path}` }
+      }
+      if (!existsSync(join(pythonDir, 'python.exe'))) {
+        return {
+          success: false,
+          message: `该目录下找不到 python.exe，拒绝删除以防误删: ${pythonDir}`,
+        }
+      }
+
+      const activePath = this.configStore.getActivePythonPath()
+      if (
+        activePath &&
+        activePath.toLowerCase() === pythonDir.toLowerCase() &&
+        this.configStore.get('activePythonVersion')
+      ) {
+        // 移除该 Python 及其 Scripts 的 PATH 条目
+        await this.pathManager.remove(pythonDir)
+        this.configStore.set("activePythonVersion", "")
+        this.configStore.set("activePythonPath", "")
+      }
+
+      this.removeDirectory(pythonDir)
+      return { success: true, message: `系统 Python 已卸载: ${pythonDir}` }
+    } catch (error: any) {
+      return { success: false, message: `卸载失败: ${error.message}` }
     }
   }
 
