@@ -19,6 +19,13 @@ import { PathManager } from "./PathManager";
 
 const execAsync = promisify(exec);
 
+// PHP Windows 版本的官方下载源。
+// 注意：windows.php.net/downloads/releases/ 现已 302 重定向到
+// downloads.php.net/~windows/releases/，且其上对已归档的旧版本会再
+// 跳转到失效地址导致 404。这里直接用最终可用源 downloads.php.net，
+// 避免重定向丢版本/旧版本 404 的问题（~windows 是该站合法路径段，非错误）。
+const PHP_WIN_RELEASES_BASE = "https://downloads.php.net/~windows/releases/";
+
 interface PhpVersion {
   version: string;
   path: string;
@@ -120,8 +127,66 @@ export class PhpManager {
    */
   private async fetchPhpVersionsFromWeb(): Promise<AvailablePhpVersion[]> {
     return new Promise((resolve, reject) => {
-      const url = "https://windows.php.net/downloads/releases/";
+      // 直接请求最终可用源 downloads.php.net（200 直连，无需跟随重定向）。
+      const url = PHP_WIN_RELEASES_BASE;
 
+      https
+        .get(
+          url,
+          {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            },
+          },
+          (response) => {
+            // 兼容 302/301：windows.php.net 旧源会跳到 downloads.php.net，
+            // 虽然已直连最终源，这里仍保留跟随逻辑以防源站再次调整。
+            if (
+              response.statusCode === 301 ||
+              response.statusCode === 302
+            ) {
+              const redirectUrl = response.headers.location;
+              if (redirectUrl) {
+                const next = redirectUrl.startsWith("http")
+                  ? redirectUrl
+                  : new URL(redirectUrl, url).href;
+                this.fetchPhpVersionsFromUrl(next)
+                  .then(resolve)
+                  .catch(reject);
+                return;
+              }
+            }
+
+            if (response.statusCode !== 200) {
+              reject(new Error(`HTTP ${response.statusCode}`));
+              return;
+            }
+
+            let html = "";
+            response.on("data", (chunk) => (html += chunk));
+            response.on("end", () => {
+              try {
+                const versions = this.parsePhpVersionsFromHtml(html);
+                resolve(versions);
+              } catch (e) {
+                reject(e);
+              }
+            });
+          }
+        )
+        .on("error", reject)
+        .setTimeout(10000, () => {
+          reject(new Error("请求超时"));
+        });
+    });
+  }
+
+  // 按 url 抓取版本目录 HTML 并解析（供重定向后复用）
+  private async fetchPhpVersionsFromUrl(
+    url: string
+  ): Promise<AvailablePhpVersion[]> {
+    return new Promise((resolve, reject) => {
       https
         .get(
           url,
@@ -136,13 +201,11 @@ export class PhpManager {
               reject(new Error(`HTTP ${response.statusCode}`));
               return;
             }
-
             let html = "";
             response.on("data", (chunk) => (html += chunk));
             response.on("end", () => {
               try {
-                const versions = this.parsePhpVersionsFromHtml(html);
-                resolve(versions);
+                resolve(this.parsePhpVersionsFromHtml(html));
               } catch (e) {
                 reject(e);
               }
@@ -183,7 +246,7 @@ export class PhpManager {
         seenVersions.add(versionKey);
         versions.push({
           version: version,
-          downloadUrl: `https://windows.php.net/downloads/releases/php-${version}-nts-Win32-vs${vsVersion}-x64.zip`,
+          downloadUrl: `${PHP_WIN_RELEASES_BASE}php-${version}-nts-Win32-vs${vsVersion}-x64.zip`,
           type: "nts",
           arch: "x64",
         });
@@ -205,7 +268,7 @@ export class PhpManager {
         seenVersions.add(versionKey);
         versions.push({
           version: `${version}-ts`,
-          downloadUrl: `https://windows.php.net/downloads/releases/php-${version}-Win32-vs${vsVersion}-x64.zip`,
+          downloadUrl: `${PHP_WIN_RELEASES_BASE}php-${version}-Win32-vs${vsVersion}-x64.zip`,
           type: "ts",
           arch: "x64",
         });
@@ -228,70 +291,78 @@ export class PhpManager {
 
   /**
    * 备用版本列表（当网络请求失败时使用）
-   * 基于 https://windows.php.net/download/ (2025-12-25)
+   * 基于 downloads.php.net/~windows/releases/ (2026-07-23)
+   * 注意：旧版（如 8.4.3/8.3.15/8.2.27/8.1.31）已从源站移除会 404，
+   * 这里只保留当前仍可下载的最新版本。
    */
   private getFallbackVersions(): AvailablePhpVersion[] {
     return [
-      // PHP 8.4 (VS17) - 最新稳定版
+      // PHP 8.5 (VS17)
       {
-        version: "8.4.3",
-        downloadUrl:
-          "https://windows.php.net/downloads/releases/php-8.4.3-nts-Win32-vs17-x64.zip",
+        version: "8.5.8",
+        downloadUrl: `${PHP_WIN_RELEASES_BASE}php-8.5.8-nts-Win32-vs17-x64.zip`,
         type: "nts",
         arch: "x64",
       },
       {
-        version: "8.4.3-ts",
-        downloadUrl:
-          "https://windows.php.net/downloads/releases/php-8.4.3-Win32-vs17-x64.zip",
+        version: "8.5.8-ts",
+        downloadUrl: `${PHP_WIN_RELEASES_BASE}php-8.5.8-Win32-vs17-x64.zip`,
+        type: "ts",
+        arch: "x64",
+      },
+
+      // PHP 8.4 (VS17) - 最新稳定版
+      {
+        version: "8.4.23",
+        downloadUrl: `${PHP_WIN_RELEASES_BASE}php-8.4.23-nts-Win32-vs17-x64.zip`,
+        type: "nts",
+        arch: "x64",
+      },
+      {
+        version: "8.4.23-ts",
+        downloadUrl: `${PHP_WIN_RELEASES_BASE}php-8.4.23-Win32-vs17-x64.zip`,
         type: "ts",
         arch: "x64",
       },
 
       // PHP 8.3 (VS16)
       {
-        version: "8.3.15",
-        downloadUrl:
-          "https://windows.php.net/downloads/releases/php-8.3.15-nts-Win32-vs16-x64.zip",
+        version: "8.3.32",
+        downloadUrl: `${PHP_WIN_RELEASES_BASE}php-8.3.32-nts-Win32-vs16-x64.zip`,
         type: "nts",
         arch: "x64",
       },
       {
-        version: "8.3.15-ts",
-        downloadUrl:
-          "https://windows.php.net/downloads/releases/php-8.3.15-Win32-vs16-x64.zip",
+        version: "8.3.32-ts",
+        downloadUrl: `${PHP_WIN_RELEASES_BASE}php-8.3.32-Win32-vs16-x64.zip`,
         type: "ts",
         arch: "x64",
       },
 
       // PHP 8.2 (VS16)
       {
-        version: "8.2.27",
-        downloadUrl:
-          "https://windows.php.net/downloads/releases/php-8.2.27-nts-Win32-vs16-x64.zip",
+        version: "8.2.32",
+        downloadUrl: `${PHP_WIN_RELEASES_BASE}php-8.2.32-nts-Win32-vs16-x64.zip`,
         type: "nts",
         arch: "x64",
       },
       {
-        version: "8.2.27-ts",
-        downloadUrl:
-          "https://windows.php.net/downloads/releases/php-8.2.27-Win32-vs16-x64.zip",
+        version: "8.2.32-ts",
+        downloadUrl: `${PHP_WIN_RELEASES_BASE}php-8.2.32-Win32-vs16-x64.zip`,
         type: "ts",
         arch: "x64",
       },
 
       // PHP 8.1 (VS16)
       {
-        version: "8.1.31",
-        downloadUrl:
-          "https://windows.php.net/downloads/releases/php-8.1.31-nts-Win32-vs16-x64.zip",
+        version: "8.1.34",
+        downloadUrl: `${PHP_WIN_RELEASES_BASE}php-8.1.34-nts-Win32-vs16-x64.zip`,
         type: "nts",
         arch: "x64",
       },
       {
-        version: "8.1.31-ts",
-        downloadUrl:
-          "https://windows.php.net/downloads/releases/php-8.1.31-Win32-vs16-x64.zip",
+        version: "8.1.34-ts",
+        downloadUrl: `${PHP_WIN_RELEASES_BASE}php-8.1.34-Win32-vs16-x64.zip`,
         type: "ts",
         arch: "x64",
       },
@@ -1913,7 +1984,17 @@ export class PhpManager {
           }
 
           if (response.statusCode !== 200) {
-            reject(new Error(`下载失败，状态码: ${response.statusCode}`));
+            if (response.statusCode === 404) {
+              reject(
+                new Error(
+                  `该扩展下载地址已失效（404），可能不适用于当前 PHP 版本或已从源站移除。URL: ${url}`
+                )
+              );
+            } else {
+              reject(
+                new Error(`下载失败，状态码: ${response.statusCode}，URL: ${url}`)
+              );
+            }
             return;
           }
 
@@ -2173,9 +2254,21 @@ export class PhpManager {
           if (response.statusCode !== 200) {
             file.close();
             if (existsSync(dest)) unlinkSync(dest);
-            reject(
-              new Error(`下载失败，状态码: ${response.statusCode}，URL: ${url}`)
-            );
+            // 404 通常意味着该版本已从源站移除（php.net 会归档/删除旧版本），
+            // 给出可操作提示而非裸状态码，便于用户选择更新或更旧的可用版本。
+            if (response.statusCode === 404) {
+              reject(
+                new Error(
+                  `该 PHP 版本下载地址已失效（404），可能已从源站移除。请尝试刷新版本列表并选择当前可用的版本。URL: ${url}`
+                )
+              );
+            } else {
+              reject(
+                new Error(
+                  `下载失败，状态码: ${response.statusCode}，URL: ${url}`
+                )
+              );
+            }
             return;
           }
 
